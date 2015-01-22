@@ -1,3 +1,5 @@
+from .debug import dbg
+
 class InstructionPipeline():
     INIT = "pushl %%ebp \nmovl %%esp, %%ebp"
     
@@ -5,6 +7,7 @@ class InstructionPipeline():
         self.instructions = []
 
     def write(self, op):
+        dbg.log("Writing instruction:", op)
         self.instructions.append(op)
 
     def export(self):

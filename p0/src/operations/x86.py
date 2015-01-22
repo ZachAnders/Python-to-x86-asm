@@ -1,3 +1,6 @@
+
+from .debug import dbg
+
 class Operation():
     def __init__(self, mem, *args):
         self.mem = mem
