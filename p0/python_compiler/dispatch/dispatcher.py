@@ -45,6 +45,7 @@ class Dispatcher():
             Stmt     : self.handler.doStmt,
             Printnl  : self.handler.doPrintnl,
             Assign   : self.handler.doAssign,
+            AssName  : self.handler.doAssName,
             Discard  : self.handler.doDiscard,
             Const    : self.handler.doConst,
             Name     : self.handler.doName,
