@@ -9,7 +9,7 @@ dispatcher.py:
        Zach Anders
 """
 
-from compiler.ast import Module, Stmt, Printnl, Assign
+from compiler.ast import Module, Stmt, Printnl, Assign, CallFunc
 from compiler.ast import Discard, Const, Name, Add, UnarySub
 
 from ..debug import dbg
@@ -40,15 +40,16 @@ class Dispatcher():
         """
         dbg.log("Dispatching :", ast)
         operations = {
-            Module   : self.handler.doModule,
-            Stmt     : self.handler.doStmt,
-            Printnl  : self.handler.doPrintnl,
-            Assign   : self.handler.doAssign,
-            Discard  : self.handler.doDiscard,
-            Const    : self.handler.doConst,
-            Name     : self.handler.doName,
-            Add      : self.handler.doAdd,
-            UnarySub : self.handler.doUnarySub,
+            Module      : self.handler.doModule,
+            Stmt        : self.handler.doStmt,
+            Printnl     : self.handler.doPrintnl,
+            CallFunc    : self.handler.doCallFunc,
+            Assign      : self.handler.doAssign,
+            Discard     : self.handler.doDiscard,
+            Const       : self.handler.doConst,
+            Name        : self.handler.doName,
+            Add         : self.handler.doAdd,
+            UnarySub    : self.handler.doUnarySub,
         }
 
         # The keys are Python classes, so we can dispatch directly with the class of 'ast'

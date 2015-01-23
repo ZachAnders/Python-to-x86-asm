@@ -61,6 +61,16 @@ class OpPrintnl(ReadonlyOperation):
             value_reg=left)
         #popl {value_reg}
 
+class OpCallFunc(Operation):
+    def write(self):
+        load_op = self.mem.ensureRegister(self.args[0])
+        left = self.mem.get(self.args[0])
+        return """
+        {load}
+        call input
+        """.format(
+            load=load_op.write())
+
 class OpAssign():
     def __init__(self, mem, name, value_ref):
         self.mem = mem

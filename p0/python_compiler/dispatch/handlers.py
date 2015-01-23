@@ -35,7 +35,16 @@ class Handler():
             op = OpPrintnl(self.mem, node)
             self.instrWriter.write(op)
         return None
-            
+    
+    def doCallFunc(self, ast):
+        items = self.dispatcher.dispatch_many(ast)
+        # CallFunc(Name(''), [], None, None))
+        # First is name of function
+        # Second is arguments
+        # Unsure about last two
+        op = OpCallFunc(self.mem, items[0])
+        return op.output_key
+                    
     def doAssign(self, ast):
         names, value_ref = ast.nodes, self.dispatcher.dispatch(ast.expr)
         for name in names:
