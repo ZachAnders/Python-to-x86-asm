@@ -21,7 +21,34 @@ class OpUnarySub(Operation):
 
 class OpPrintnl(Operation):
     def write(self, instWriter):
-        #pushl -x(%ebp)
-        #call print_int_nl
-        #addl 4, %ebp
+        self.mem.ensureRegister(self.args[0])
+	    left = self.mem.get(self.args[0])
+        return """
+        pushl %s
+        call print_int
+        addl $4, %%esp
 
+        """% (left)
+
+class OpAssign(Operation):
+    def write(self, instWriter):
+        self.mem.ensureRegister(self.args[0])
+        left = self.mem.get(self.args[0]
+        right = self.mem.get(self.args[1]
+        return "movl %s %s" % (left, right)
+
+class OpStmt(Operation):
+    def write(self, instWriter):
+        #self.mem.ensureRegister(self.args[0])
+        return """
+        pushl %%ebp
+        movl %%esp, %%ebp
+        """
+
+class OpModule(Operation):
+    def write(self, instWriter):
+        #self.mem.ensureRegister(self.args[0])
+        return """
+        .global main
+        main:
+        """

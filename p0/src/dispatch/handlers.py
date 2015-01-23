@@ -14,26 +14,33 @@ class Handler():
         
     def doModule(self, ast):
         _ = self.dispatcher.dispatch_many(self, ast)
-        #self.instrWriter.write(op)
+        op = OpModule(self.mem)
+        self.instrWriter.write(op)
         return None
 
     def doStmt(self, ast):
         _ = self.dispatcher.dispatch_many(self, ast)
-        #self.instrWriter.write(op)
+        op = OpStmt(self.mem)
+        self.instrWriter.write(op)
         return None
 
     def doPrintnl(self, ast):
-            left, right = self.dispatcher.dispatch_many(self, ast)
-            # l: value to print, r: destination to print to
-            op = OpPrintnl(mem,left,right);
+        left, right = self.dispatcher.dispatch_many(self, ast)
+        # l: value to print, r: destination to print to
+        for node in left:
+            op = OpPrintnl(mem, node, right);
             self.instrWriter.write(op)
-            return None
+        return None
             
     def doAssign(self, ast):
         left, right = self.dispatcher.dispatch_many(self, ast)
         op = OpAssign(mem, left, right)
         self.instrWriter.write(op)
         return op.key
+
+    def doAssName(self, ast):
+        _ = self.dispatcher.dispatch_many(self, ast)
+        return None
 
     def doDiscard(self, ast):
         left, right = self.dispatcher.dispatch_many(self, ast)
