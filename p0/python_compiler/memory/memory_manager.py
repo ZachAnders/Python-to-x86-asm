@@ -10,7 +10,7 @@ memory_manager.py:
        Zach Anders
 """
 
-from .debug import dbg
+from ..debug import dbg
 
 class MemoryManager:
     CHAR = 1

@@ -1,7 +1,7 @@
 import sys
 
-from dispatch.dispatcher import Dispatcher
-from debug import dbg
+from python_compiler.dispatch.dispatcher import Dispatcher
+from python_compiler.debug import dbg
 
 import compiler
 

@@ -1,5 +1,5 @@
 
-from .debug import dbg
+from ..debug import dbg
 
 class Operation():
     def __init__(self, mem, *args):
@@ -21,6 +21,7 @@ class OpUnarySub(Operation):
 
 class OpPrintnl(Operation):
     def write(self, instWriter):
+        pass
         #pushl -x(%ebp)
         #call print_int_nl
         #addl 4, %ebp

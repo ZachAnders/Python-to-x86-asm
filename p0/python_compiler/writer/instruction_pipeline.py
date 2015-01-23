@@ -1,4 +1,4 @@
-from .debug import dbg
+from ..debug import dbg
 
 class InstructionPipeline():
     INIT = "pushl %%ebp \nmovl %%esp, %%ebp"

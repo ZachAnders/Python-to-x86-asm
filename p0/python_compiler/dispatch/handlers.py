@@ -1,4 +1,4 @@
-from .operations.x86 import OpAdd
+from ..operations.x86 import OpAdd
 
 class Handler():
     def __init__(self, dispatcher, mem, instrWriter):

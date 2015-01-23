@@ -13,9 +13,9 @@ dispatcher.py:
 from compiler.ast import Module, Stmt, Printnl, Assign
 from compiler.ast import Discard, Const, Name, Add, UnarySub
 
-from .debug import dbg
-from .memory.memory_manager import MemoryManager
-from .writer.instruction_pipeline import InstructionPipeline
+from ..debug import dbg
+from ..memory.memory_manager import MemoryManager
+from ..writer.instruction_pipeline import InstructionPipeline
 
 from handlers import Handler
 
