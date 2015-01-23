@@ -6,9 +6,13 @@ class LeastRecentlyUsedCache:
             self.registers_alloc[r] = None
 
     def set(self, value):
-        register = self.registers[0]
-        self.registers_alloc[register] = value
-        self.__used__(register)
+        if not self.contains(value):
+            register = self.registers[0]
+            self.registers_alloc[register] = value
+            self.__used__(register)
+            return register
+        else:
+            return self.getRegisterByKey(value)
 
     def getKeyByRegister(self, register):
         self.__used__(register)
@@ -22,3 +26,17 @@ class LeastRecentlyUsedCache:
     def __used__(self, register):
         self.registers.remove(register)
         self.registers.append(register)
+
+    def contains(self, key):
+        for r in self.registers_alloc:
+            if self.registers_alloc[r] == key:
+                return True
+        return False
+
+    def prioritize(self, key):
+        self.__used__(self.getRegisterByKey(key))
+
+    def clear(self, key):
+        if self.contains(key):
+            reg = self.getRegisterByKey(key)
+            del self.registers_alloc[reg]

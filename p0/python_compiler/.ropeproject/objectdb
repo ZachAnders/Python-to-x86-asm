@@ -1,7 +1,14 @@
-€}qUdispatch/handlers.pyq}q(UHandler.__init__crope.base.oi.memorydb
+€}q(Umemory/memory_manager.pyq}q(UMemoryManager.finalizecrope.base.oi.memorydb
 ScopeInfo
-q)q}q((UinstanceqUdefinedqhUHandlerq	‡†hhUdispatch/dispatcher.pyU
-Dispatcherq
-‡†Unone…qhtUunknown…q(hhhh	‡†hhUdispatch/dispatcher.pyh
-‡†Uunknown…qhth(UinstanceqUdefinedqUdispatch/handlers.pyqUHandlerq‡†hhUdispatch/dispatcher.pyqU
-Dispatcherq‡†Unone…qUunknown…qtUunknown…qu}q†bUHandler.doModuleh)q}qhh†hs}q†bus.
+q)q}qUinstanceqUdefinedqUmemory/memory_manager.pyq	UMemoryManagerq
+‡†…Uunknown…qs}q†bUMemoryManager.__init__h)q}qhhhh
+‡†hhUwriter/instruction_pipeline.pyqUInstructionPipelineq‡††hs}q†buUdispatch/handlers.pyq}q(UHandler.__init__h)q}q((UinstanceqUdefinedqhUHandlerq‡†hhUdispatch/dispatcher.pyqU
+Dispatcherq‡†Unone…qhtUunknown…q(hhhh‡†hhUdispatch/dispatcher.pyh‡†Uunknown…qhth(UinstanceqUdefinedqUdispatch/handlers.pyUHandler‡†hhUdispatch/dispatcher.pyU
+Dispatcher‡†Unone…Uunknown…tUunknown…(hhUdispatch/handlers.pyq UHandlerq!‡†hhUdispatch/dispatcher.pyq"U
+Dispatcherq#‡†hhhh
+‡†hhhh‡†thu}q$†bUHandler.doModuleh)q%}q&hh†hs}q'†buUT/opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/inspect.py}q(Ustackh)q)}q*Unone…q+…Uunknown…q,s}q-†bsh}q.(UDispatcher.dispatch_manyh)q/}q0(Uinstanceq1Udefinedq2hU
+Dispatcherq3‡†Uunknown…q4†Ubuiltinq5Ulisth4‡h1h2hh3‡†h1h2Udispatch/handlers.pyUHandlerq6‡†h4‡h,u}q7†bUDispatcher.dispatchh)q8}q9(hhUdispatch/dispatcher.pyq:h#‡†Uunknown…q;†hh1h2hh3‡†h1h2Udispatch/handlers.pyh6‡†h4‡h,h1h2hh3‡†h+†h,u}q<†buUmemory/anonymous_identifier.pyq=}q>UAnonymousIdentifier.__init__h)q?}q@h1h2h=UAnonymousIdentifier‡†…h,s}qA†bsUwriter/instruction_pipeline.pyqB}qC(UInstructionPipeline.exporth)qD}qEUinstanceUdefinedhBUInstructionPipeline‡†Unone…†Uunknown…s}qF†bUInstructionPipeline.__init__h)qG}qHhhhh‡†…hs}qI†buUoperations/x86.pyqJ}qK(UReadonlyOperation.__init__h)qL}qM(hhUoperations/x86.pyqNUOpReturnqO‡†h;Unone…qP‡hhhhNUOpStmtqQ‡†h;hP‡hu}qR†bUOperation.__init__h)qS}qT(h1h2Uoperations/x86.pyU
+OpNewConst‡†h4h+‡h,(h1h2hJUOpAssignqU‡†h4h4h4th,(h1h2hJUOpAdd‡†h4h4h4th,h1h2Uoperations/x86.pyU
+OpUnarySub‡†h4h4‡h,(h1h2hJhU‡†h4h+h+th,u}qV†bUOpAssign.__init__h)qW}qX((h1h2Uoperations/x86.pyhU‡†h4h+h4th,h1h2Uoperations/x86.pyhU‡†h+h4‡h,u}qY†buUutil/cache.pyqZ}q[(ULeastRecentlyUsedCache.__used__h)q\}q](h1h2Uutil/cache.pyULeastRecentlyUsedCacheq^‡†UbuiltinUstr†q_†h,h1h2Uutil/cache.pyh^‡†(h5Utupleq`h_h+t†h,u}qa†bU!LeastRecentlyUsedCache.prioritizeh)qb}qch1h2Uutil/cache.pyh^‡†h4†h,s}qd†bU'LeastRecentlyUsedCache.getRegisterByKeyh)qe}qfh1h2hZh^‡†h4†(h5h`h_h+ts}qg†bULeastRecentlyUsedCache.__init__h)qh}qihhUutil/cache.pyqjULeastRecentlyUsedCacheqk‡†…hs}ql†bh^h)qm}qn}qoUregisters_alloc(h5h`h_h4ts†bULeastRecentlyUsedCache.clearh)qp}qqh1h2Uutil/cache.pyh^‡†h4†h,s}qr†bULeastRecentlyUsedCache.seth)qs}qth1h2hZh^‡†h4†(h5h`h_h+ts}qu†bULeastRecentlyUsedCache.containsh)qv}qwh1h2hZh^‡†h4†h,s}qx†buUdebug/dbg.pyqy}qz(U__logger__.printstackh)q{}q|UinstanceUdefinedUdebug/dbg.pyU
+__logger__‡†…Uunknown…s}q}†bU__logger__.__call__h)q~}q(h1h2hyU
+__logger__q€‡†h_h_‡h,(h1h2hyh€‡†h_h4h_th,h1h2hyh€‡†h_h4‡h,u}q†buUoperations/memory.pyq‚}qƒ(UOpStackAllocate.__init__h)q„}q…hhUoperations/memory.pyq†UOpStackAllocateq‡‡†Uunknown…qˆ†hs}q‰†bUOpMovl.__init__h)qŠ}q‹(h1h2h‚UOpMovlqŒ‡†h+h+‡h,h1h2h‚hŒ‡†h4(h5h`h_h+t‡h,hhUoperations/memory.pyqUOpMovlq‡†h;UbuiltinUstr†q‡hh1h2h‚hŒ‡†h4h4‡h,h1h2h‚hŒ‡†h4h+‡h,u}q†bUOpStackDeallocate.__init__h)q‘}q’(hhh†UOpStackDeallocateq“‡†hhUmemory/anonymous_identifier.pyq”UAnonymousIdentifierq•‡††hhhh†h“‡†h;†hu}q–†buu.

@@ -5,7 +5,18 @@ from python_compiler.debug import dbg
 
 import compiler
 
-test_file = "test.py"
+"""
+Rudimentary main function.
+
+Run like this:
+
+    python main.py <testfiletocompile.py>
+        [Spits out ASM to stdout]
+"""
+
+#dbg.log.enable()
+
+test_file = sys.argv[1]
 
 dispatcher = Dispatcher()
 
@@ -17,3 +28,8 @@ ast = compiler.parse(data)
 dbg.log("Parsing AST:", ast)
 
 dispatcher.dispatch(ast)
+
+val = dispatcher.writeOut()
+
+print "Final code:"
+print val

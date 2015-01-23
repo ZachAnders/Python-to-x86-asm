@@ -11,6 +11,9 @@ memory_manager.py:
 """
 
 from ..debug import dbg
+from ..util.cache import LeastRecentlyUsedCache
+from ..operations.memory import OpMovl, OpStackAllocate, OpStackDeallocate, OpNoop
+from ..memory.anonymous_identifier import AnonymousIdentifier
 
 class MemoryManager:
     CHAR = 1
@@ -20,29 +23,57 @@ class MemoryManager:
     STR = 1
     def __init__(self, instrWriter):
         self.registers = ['ebx', 'ecx', 'edx', 'esi', 'edi']
-        self.register_alloc = {}
+        self.register_alloc = LeastRecentlyUsedCache()
         self.memory_alloc = {}
-        self.size = 0
         self.instrWriter = instrWriter
-    def get(self, arg):
-        dbg.log("Retrieving:", arg)
-        if arg in self.register_alloc:
-            # Put arg at the top of LRU
-            return "%" + self.register_alloc[arg]
-        else:
-            # self.memory_alloc[arg] == "-16(%ebp)" ,    ".data_label_thing
-            return self.memory_alloc[arg]
+        self.stack_alloc = OpStackAllocate(0)
 
-    def allocateStack(self, name, size=4):
+    def getStackAllocation(self):
+        return self.stack_alloc
+       
+    def get(self, key, address_only=False):
+        dbg.log.printstack()
+        dbg.log("Retrieving:", key)
+        if not address_only and self.register_alloc.contains(key):
+            # Put key at the top of LRU
+            ret = "%" + self.register_alloc.getRegisterByKey(key)
+            dbg.log("Retrieved Register:", ret)
+            return ret
+        else:
+            # self.memory_alloc[key] == "-16(%ebp)" ,    ".data_label_thing
+            ret = self.memory_alloc[key]
+            dbg.log("Retrieved Address:", ret)
+            return ret
+
+    def allocateStack(self, name=None, size=4):
+        if name == None:
+            name = AnonymousIdentifier()
         dbg.log("Allocating stack space for '", name, "'")
-        self.size += size
-        self.memory_alloc[name] = "-" + str(self.size) + "(%ebp)"
+        self.stack_alloc.size += size
+        self.memory_alloc[name] = "-" + str(self.stack_alloc.size) + "(%ebp)"
+        return name
 
     def ensureRegister(self, name):
-        #TODO: This
-        pass
-        
-        # Make sure not already in register
+        if not self.register_alloc.contains(name):
+            addr = self.memory_alloc[name]
+            register = "%" + self.register_alloc.set(name)
 
-        #reg = # Find least recently used register 
-        #self.instrWriter.write(OpMovl(self.get(name), reg))
+            movl = OpMovl(addr, register)
+            return movl
+        else:
+            self.register_alloc.prioritize(name)
+            return OpNoop()
+
+
+    def saveRegister(self, register, key):
+        addr = self.memory_alloc[key]
+
+        movl = OpMovl(register, addr)
+
+        self.register_alloc.clear(register)
+        return movl
+
+    def finalize(self):
+        op = OpStackDeallocate(self.stack_alloc.size)
+        self.instrWriter.write(op)
+

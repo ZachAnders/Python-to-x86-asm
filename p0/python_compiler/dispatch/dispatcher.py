@@ -1,5 +1,4 @@
-"""
-
+""" 
 dispatcher.py:
     Dispatcher() : class
         The Dispatcher is what is responsible for 'flattening' the AST.
@@ -57,3 +56,6 @@ class Dispatcher():
 
     def dispatch_many(self, ast):
         return [self.dispatch(child) for child in ast.nodes]
+
+    def writeOut(self):
+        return self.instrWriter.export(fname=None)

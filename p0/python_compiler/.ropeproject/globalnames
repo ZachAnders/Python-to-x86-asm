@@ -1,3 +1,8 @@
-€}q(Umemory.memory_manager]qUMemoryManagerqaU
-dispatcher]qU
-DispatcherqaUinstruction_pipeline]qUInstructionPipelineqaUwriter.instruction_pipeline]qhau.
+€}q(U
+util.cache]qULeastRecentlyUsedCacheqaUwriter.instruction_pipeline]qUInstructionPipelineqaUdispatch.dispatcher]qU
+DispatcherqaUinstruction_pipeline]qUInstructionPipelineq	aUoperations.memory]q
+(UOpStackAllocateqUOpMovlqUOpStackDeallocateqUOpNoopqeUmemory.anonymous_identifier]qUAnonymousIdentifierqaUoperations.x86]q(U	OpPrintnlqU
+OpUnarySubqUOpModuleqUReadonlyOperationqUOpAssignqUOpAddqU	OperationqU
+OpNewConstqUOpStmtqUOpReturnqeUmemory.memory_manager]qUMemoryManagerqaUdispatch.handlers]qUHandlerqaU
+dispatcher]q U
+Dispatcherq!au.
