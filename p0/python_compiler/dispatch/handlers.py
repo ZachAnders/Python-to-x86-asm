@@ -1,4 +1,4 @@
-from ..operations.x86 import OpAdd, OpModule, OpStmt, OpPrintnl, OpAssign, OpUnarySub, OpNewConst, OpReturn
+from ..operations.x86 import OpAdd, OpModule, OpStmt, OpPrintnl, OpAssign, OpCallFunc, OpUnarySub, OpNewConst, OpReturn
 
 class Handler():
     def __init__(self, dispatcher, mem, instrWriter):
@@ -37,12 +37,16 @@ class Handler():
         return None
     
     def doCallFunc(self, ast):
-        items = self.dispatcher.dispatch_many(ast)
-        # CallFunc(Name(''), [], None, None))
-        # First is name of function
-        # Second is arguments
-        # Unsure about last two
-        op = OpCallFunc(self.mem, items[0])
+        name = self.dispatcher.dispatch(ast.node)
+        #args[self.dispatcher.dispatch(arg) for arg in ast.args] 
+
+        """
+        CallFunc(Name(''), [], None, None))
+        First is name of function
+        Second is arguments
+        Unsure about last two
+        """
+        op = OpCallFunc(self.mem, name)
         return op.output_key
                     
     def doAssign(self, ast):
@@ -69,7 +73,7 @@ class Handler():
         return ast.name
 
     def doUnarySub(self, ast):
-        node = self.dispatcher.dispatch(self, ast)
+        node = self.dispatcher.dispatch(ast.expr)
         op = OpUnarySub(self.mem, node)
         self.instrWriter.write(op)
         return op.output_key

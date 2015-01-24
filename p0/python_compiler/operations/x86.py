@@ -67,9 +67,10 @@ class OpCallFunc(Operation):
         left = self.mem.get(self.args[0])
         return """
         {load}
-        call input
+        call {name} 
         """.format(
-            load=load_op.write())
+            load=load_op.write(),
+            name=left)
 
 class OpAssign():
     def __init__(self, mem, name, value_ref):
