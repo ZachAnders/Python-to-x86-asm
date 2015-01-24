@@ -1,6 +1,6 @@
 class LeastRecentlyUsedCache:
     def __init__(self):
-        self.registers = ['ebx', 'ecx', 'edx', 'esi', 'edi']
+        self.registers = ['ebx', 'ecx', 'edx', 'edi']
         self.registers_alloc = {}
         for r in self.registers:
             self.registers_alloc[r] = None
@@ -44,3 +44,6 @@ class LeastRecentlyUsedCache:
     def clearRegister(self, register):
         if register in self.registers_alloc:
             del self.registers_alloc[register]
+
+    def clearAll(self):
+        self.registers_alloc = {}

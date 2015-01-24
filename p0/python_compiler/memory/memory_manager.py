@@ -22,7 +22,7 @@ class MemoryManager:
     LONG = 4
     STR = 1
     def __init__(self, instrWriter):
-        self.registers = ['ebx', 'ecx', 'edx', 'esi', 'edi']
+        self.registers = ['ebx', 'ecx', 'edx', 'edi']
         self.register_alloc = LeastRecentlyUsedCache()
         self.memory_alloc = {}
         self.instrWriter = instrWriter
@@ -79,3 +79,5 @@ class MemoryManager:
         op = OpStackDeallocate(self.stack_alloc.size)
         self.instrWriter.write(op)
 
+    def clearRegisters(self):
+        self.register_alloc.clearAll()

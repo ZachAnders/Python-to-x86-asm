@@ -21,16 +21,20 @@ class OpAdd(Operation):
         right = self.mem.get(self.args[1])
 
         out_addr = self.mem.get(self.output_key, address_only=True)
+        save_op = self.mem.saveRegister(left, self.output_key)
 
         return """
             {load} # Load left Add operand
             addl {right_operand}, {accumulator} # Add right operand to left
-            movl {accumulator}, {output_addr} # Save Add result
+            {save}
         """.format(
             load=load_op.write().strip(),
             accumulator=left,
             right_operand=right,
-            output_addr=out_addr)
+            output_addr=out_addr,
+            save=save_op.write().strip())
+
+            #movl {accumulator}, {output_addr} # Save Add result
 
 class OpUnarySub(Operation):
     def write(self):
@@ -53,14 +57,15 @@ class OpUnarySub(Operation):
 
 class OpPrintnl(ReadonlyOperation):
     def write(self):
-        load_op = self.mem.ensureRegister(self.args[0])
+        load_op = self.mem.ensureRegister(self.args[0]).write().strip()
         left = self.mem.get(self.args[0])
+        self.mem.clearRegisters()
         return """
         {load} # Load print operand
         pushl {value_reg} # Put operand on stack
         call print_int_nl # Call print
         """.format(
-            load=load_op.write().strip(),
+            load=load_op,
             value_reg=left)
         #popl {value_reg}
 
@@ -68,6 +73,7 @@ class OpCallFunc(Operation):
     def write(self):
         #load_op = self.mem.ensureRegister(self.args[0])
         save_op = self.mem.saveRegister("%eax", self.output_key).write().strip()
+        self.mem.clearRegisters()
         #left = self.mem.get(self.args[0])
         # {load}
         return """
