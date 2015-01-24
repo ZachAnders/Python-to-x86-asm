@@ -14,7 +14,7 @@ Run like this:
         [Spits out ASM to stdout]
 """
 
-dbg.log.enable()
+#dbg.log.enable()
 
 test_file = sys.argv[1]
 
@@ -31,7 +31,4 @@ dispatcher.dispatch(ast)
 
 filename = os.path.basename(test_file)[:-3] + ".s"
 
-val = dispatcher.writeOut(fname=filename)
-
-print "Final code:"
-print val
+dispatcher.writeOut(fname=filename)
