@@ -58,5 +58,5 @@ class Dispatcher():
     def dispatch_many(self, ast):
         return [self.dispatch(child) for child in ast.nodes]
 
-    def writeOut(self):
-        return self.instrWriter.export(fname=None)
+    def writeOut(self, fname=None):
+        return self.instrWriter.export(fname=fname)

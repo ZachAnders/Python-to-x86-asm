@@ -40,3 +40,7 @@ class LeastRecentlyUsedCache:
         if self.contains(key):
             reg = self.getRegisterByKey(key)
             del self.registers_alloc[reg]
+
+    def clearRegister(self, register):
+        if register in self.registers_alloc:
+            del self.registers_alloc[register]

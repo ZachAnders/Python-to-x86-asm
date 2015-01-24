@@ -1,4 +1,4 @@
-import sys
+import sys, os
 
 from python_compiler.dispatch.dispatcher import Dispatcher
 from python_compiler.debug import dbg
@@ -14,7 +14,7 @@ Run like this:
         [Spits out ASM to stdout]
 """
 
-#dbg.log.enable()
+dbg.log.enable()
 
 test_file = sys.argv[1]
 
@@ -29,7 +29,9 @@ dbg.log("Parsing AST:", ast)
 
 dispatcher.dispatch(ast)
 
-val = dispatcher.writeOut()
+filename = os.path.basename(test_file)[:-3] + ".s"
+
+val = dispatcher.writeOut(fname=filename)
 
 print "Final code:"
 print val

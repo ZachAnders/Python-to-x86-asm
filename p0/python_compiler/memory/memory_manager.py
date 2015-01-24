@@ -70,7 +70,9 @@ class MemoryManager:
 
         movl = OpMovl(register, addr)
 
-        self.register_alloc.clear(register)
+        register = register.replace("%", "")
+        dbg.log("CLEARING REGISTER: ", register)
+        self.register_alloc.clearRegister(register)
         return movl
 
     def finalize(self):

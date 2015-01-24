@@ -47,6 +47,7 @@ class Handler():
         Unsure about last two
         """
         op = OpCallFunc(self.mem, name)
+        self.instrWriter.write(op)
         return op.output_key
                     
     def doAssign(self, ast):
