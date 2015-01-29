@@ -10,7 +10,7 @@ tokens = (
     'PLUS',
     'EQUALS', 
     'NAME',
-    'MINUS',
+    'UMINUS',
     'LPAREN',
     'RPAREN',
 )
@@ -19,7 +19,7 @@ tokens = (
 t_PRINT = r'print'
 t_INPUT = r'input'
 t_PLUS = r'\+'
-t_MINUS = r'-'
+t_UMINUS = r'-'
 t_EQUALS = r'='
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
@@ -48,7 +48,8 @@ lex.lex()
 # Parser
 precedence = (
         ('nonassoc','PRINT'),
-        ('left','PLUS','MINUS')
+        ('left','PLUS'),
+        ('right','UMINUS')
         )
 
 # Statement
@@ -77,16 +78,16 @@ def p_var_expression(t):
     'expression : NAME'
     t[0] = Var(t[1])
 
-def p_paren_expression(t):
+def p_group_expression(t):
     'expression : LPAREN expression RPAREN'
-    t[0] = Paren(t[2])
+    t[0] =t[2]
 
 def p_input_expression(t):
     'expression : INPUT LPAREN RPAREN'
     t[0] = Input()
 
 def p_unarysub_expression(t):
-    'expression : MINUS expression'
+    'expression : UMINUS expression'
     t[0] = UnarySub(t[1])
 
 def p_error(t):
