@@ -48,7 +48,7 @@ lex.lex()
 # Parser
 precedence = (
         ('nonassoc','PRINT'),
-        ('left','PLUS')
+        ('left','PLUS','MINUS')
         )
 
 # Statement
