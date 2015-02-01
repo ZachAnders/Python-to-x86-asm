@@ -86,7 +86,7 @@ precedence = (
 # PLY Entry point
 def p_begin_module(t):
     "statement : module"
-    t[0] = Module(t[1], None)
+    t[0] = Module(None, t[1])
 
 # Top level Python Module
 def p_top_level_statement(t):
