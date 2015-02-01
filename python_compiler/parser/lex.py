@@ -1,5 +1,6 @@
 import ply.lex as lex
 import ply.yacc as yacc
+import sys
 from compiler.ast import *
 
 class Input():
@@ -24,23 +25,30 @@ tokens = (
 )
 
 # Regular expression rules for tokens
-t_PRINT = r'print'
-t_INPUT = r'input'
 t_PLUS = r'\+'
 t_UMINUS = r'-'
 t_EQUALS = r'='
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
-t_NAME = r'[a-zA-Z]+\w*'
 
-#def t_NAME(t):
-#    r'[a-zA-Z]+\w*'
-#    try:
-#        t.value = str(t.value)                
-#    except ValueError:
-#        print "error:", t.value
-#        t.value = ""
-#    return t
+# HIGHEST PRECEDENCE IS GIVEN TO THE EARLIEST DEFINED TOKEN
+
+def t_PRINT(t):
+    r'print'
+    return t
+
+def t_INPUT(t):
+    r'input'
+    return t
+
+def t_NAME(t):
+    r'[a-zA-Z]+\w*'
+    try:
+        t.value = str(t.value)                
+    except ValueError:
+        print "error:", t.value
+        t.value = ""
+    return t
 
 def t_COMMENT(t):
     r'\#.*'
@@ -65,13 +73,14 @@ def t_error(t):
     print "Illegal character '%s'" % t.value[0]
     t.lexer.skip(1)
 
-lex.lex();
+#lex.lex(debug=1);
+lex.lex()
 
 # Parser
 precedence = (
         ('nonassoc','PRINT'),
         ('left','PLUS'),
-        ('right','UMINUS')
+        ('right','UMINUS'),
         )
 # Modlue
 # Statement
@@ -116,6 +125,7 @@ def p_error(t):
     print "Syntax error at '%s'" % t.value
 
 yacc.yacc()
-print yacc.parse("""# Example Code
-x = -55 + 2
-print x + 2""")
+print yacc.parse("print my_test_variable")
+#print yacc.parse("""# Example Code
+#x = -55 + 2
+#print x + 2""")
