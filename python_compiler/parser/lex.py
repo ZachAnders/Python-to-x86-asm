@@ -83,7 +83,15 @@ precedence = (
         ('right','UMINUS'),
         )
 # Modlue
+def p_module(t):
+    'module : statement'
+    t[0] = Module(None, Stmt(t[1]))
+
 # Statement
+def p_statement(t):
+    'statement : statement statement'
+    t[0] = [t[1],t[2]]
+
 def p_print_statement(t):
     'statement : PRINT expression'
     t[0] = Printnl([t[2]], None)
@@ -115,7 +123,7 @@ def p_group_expression(t):
 
 def p_input_expression(t):
     'expression : INPUT LPAREN RPAREN'
-    t[0] = Input()
+    t[0] = CallFunc(Name(t[1]), [], None, None)
 
 def p_unarysub_expression(t):
     'expression : UMINUS expression'
@@ -125,7 +133,7 @@ def p_error(t):
     print "Syntax error at '%s'" % t.value
 
 yacc.yacc()
-print yacc.parse("print my_test_variable")
-#print yacc.parse("""# Example Code
-#x = -55 + 2
-#print x + 2""")
+print yacc.parse("""# Example Code
+x = input() 
+print x + 2
+print 5 + -2""")
