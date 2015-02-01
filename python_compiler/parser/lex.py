@@ -82,26 +82,40 @@ precedence = (
         ('left','PLUS'),
         ('right','UMINUS'),
         )
-# Modlue
-def p_module(t):
-    'module : statement'
-    t[0] = Module(None, Stmt(t[1]))
+# Module
+def p_begin_module(t):
+    "statement : module"
+    t[0] = Module(t[1], None)
+
+def p_top_level_statement(t):
+    "module : py_statement_list"
+    t[0] = Stmt(t[1])
 
 # Statement
-def p_statement(t):
-    'statement : statement statement'
-    t[0] = [t[1],t[2]]
+def p_list_statement(t):
+    'py_statement_list : py_statement py_statement_list'
+
+    # If the right element is a list (py_statement_list),
+    # We append the left element to it
+    if isinstance(t[2], list):
+        t[0] = [t[1]] + t[2]
+    else:
+        t[0] = t[1:]
+
+def p_list_statement_terminate(t):
+    'py_statement_list : py_statement'
+    t[0] = t[1]
 
 def p_print_statement(t):
-    'statement : PRINT expression'
+    'py_statement : PRINT expression'
     t[0] = Printnl([t[2]], None)
 
 def p_Assign_statement(t):
-    'statement : NAME EQUALS expression'
+    'py_statement : NAME EQUALS expression'
     t[0] = Assign([AssName(t[1], 'OP_ASSIGN')], t[3])
 
 def p_discard_statement(t):
-    'statement : expression'
+    'py_statement : expression'
     t[0] = Discard(t[1])
 
 # Expression       
@@ -123,7 +137,7 @@ def p_group_expression(t):
 
 def p_input_expression(t):
     'expression : INPUT LPAREN RPAREN'
-    t[0] = CallFunc(Name(t[1]), [], None, None)
+    t[0] = Input()
 
 def p_unarysub_expression(t):
     'expression : UMINUS expression'
@@ -133,7 +147,8 @@ def p_error(t):
     print "Syntax error at '%s'" % t.value
 
 yacc.yacc()
+#print yacc.parse("print my_test_variable")
+#print yacc.parse(sys.argv[1])
 print yacc.parse("""# Example Code
-x = input() 
-print x + 2
-print 5 + -2""")
+x = -55 + 2
+print x + 2""")
