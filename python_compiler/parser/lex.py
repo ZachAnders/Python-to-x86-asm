@@ -38,7 +38,7 @@ def t_PRINT(t):
     return t
 
 def t_INPUT(t):
-    r'input'
+    r'input\(\)'
     return t
 
 def t_NAME(t):
@@ -144,8 +144,8 @@ def p_int_expression(t):
 
 
 def p_input_expression(t):
-    'expression : INPUT LPAREN RPAREN'
-    t[0] = Input()
+    'expression : INPUT'
+    t[0] = CallFunc(Name('input'), [], None, None)
 
 def p_unarysub_expression(t):
     'expression : UMINUS expression'
@@ -156,7 +156,7 @@ def p_error(t):
 
 yacc.yacc()
 #print yacc.parse("print my_test_variable")
-#print yacc.parse(sys.argv[1])
-print yacc.parse("""# Example Code
-x = -55 + 2
-print x + 2""")
+print yacc.parse(sys.argv[1])
+#print yacc.parse("""# Example Code
+#x = -55 + 2
+#print x + 2""")
