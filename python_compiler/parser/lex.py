@@ -20,6 +20,7 @@ tokens = (
     'UMINUS',
     'LPAREN',
     'RPAREN',
+    'COMMENT',
 )
 
 # Regular expression rules for tokens
@@ -30,13 +31,20 @@ t_UMINUS = r'-'
 t_EQUALS = r'='
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
+t_NAME = r'[a-zA-Z]+\w*'
 
-def t_NAME(t):
-    '[a-zA-Z][a-zA-Z]*'
-    return t
+#def t_NAME(t):
+#    r'[a-zA-Z]+\w*'
+#    try:
+#        t.value = str(t.value)                
+#    except ValueError:
+#        print "error:", t.value
+#        t.value = ""
+#    return t
 
-#t_NAME = r'[a-zA-Z]+'
-#t_NAME = r'a.*'
+def t_COMMENT(t):
+    r'\#.*'
+    pass
 
 def t_INT(t):
     r'\d+'
@@ -57,7 +65,7 @@ def t_error(t):
     print "Illegal character '%s'" % t.value[0]
     t.lexer.skip(1)
 
-lex.lex()
+lex.lex();
 
 # Parser
 precedence = (
@@ -65,7 +73,7 @@ precedence = (
         ('left','PLUS'),
         ('right','UMINUS')
         )
-
+# Modlue
 # Statement
 def p_print_statement(t):
     'statement : PRINT expression'
@@ -73,7 +81,7 @@ def p_print_statement(t):
 
 def p_Assign_statement(t):
     'statement : NAME EQUALS expression'
-    t[0] = Assign(t[1], t[3])
+    t[0] = Assign([AssName(t[1], 'OP_ASSIGN')], t[3])
 
 def p_discard_statement(t):
     'statement : expression'
@@ -108,4 +116,6 @@ def p_error(t):
     print "Syntax error at '%s'" % t.value
 
 yacc.yacc()
-print yacc.parse("print abc")
+print yacc.parse("""# Example Code
+x = -55 + 2
+print x + 2""")
