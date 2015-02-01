@@ -42,7 +42,7 @@ def t_INPUT(t):
     return t
 
 def t_NAME(t):
-    r'[a-zA-Z]+\w*'
+    r'[a-zA-Z_]+\w*'
     try:
         t.value = str(t.value)                
     except ValueError:
