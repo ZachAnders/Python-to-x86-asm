@@ -82,16 +82,23 @@ precedence = (
         ('left','PLUS'),
         ('right','UMINUS'),
         )
-# Module
+
+# PLY Entry point
 def p_begin_module(t):
     "statement : module"
     t[0] = Module(t[1], None)
 
+# Top level Python Module
 def p_top_level_statement(t):
     "module : py_statement_list"
     t[0] = Stmt(t[1])
 
-# Statement
+# Special case for the empty module
+def p_empty_module(t):
+    "module : "
+    t[0] = Stmt([])
+
+# Recursive definition for py_statement_list. Ensures the resulting list is flat
 def p_list_statement(t):
     'py_statement_list : py_statement py_statement_list'
 
@@ -102,6 +109,7 @@ def p_list_statement(t):
     else:
         t[0] = t[1:]
 
+# Terminates a py_statement_list
 def p_list_statement_terminate(t):
     'py_statement_list : py_statement'
     t[0] = t[1]
@@ -110,7 +118,7 @@ def p_print_statement(t):
     'py_statement : PRINT expression'
     t[0] = Printnl([t[2]], None)
 
-def p_Assign_statement(t):
+def p_assign_statement(t):
     'py_statement : NAME EQUALS expression'
     t[0] = Assign([AssName(t[1], 'OP_ASSIGN')], t[3])
 
@@ -118,7 +126,10 @@ def p_discard_statement(t):
     'py_statement : expression'
     t[0] = Discard(t[1])
 
-# Expression       
+def p_grouped_expression(t):
+    'expression : LPAREN expression RPAREN'
+    t[0] =t[2]
+
 def p_plus_expression(t):
     'expression : expression PLUS expression'
     t[0] = Add((t[1], t[3]))
@@ -131,9 +142,6 @@ def p_int_expression(t):
     'expression : INT'
     t[0] = Const(t[1])
 
-def p_group_expression(t):
-    'expression : LPAREN expression RPAREN'
-    t[0] =t[2]
 
 def p_input_expression(t):
     'expression : INPUT LPAREN RPAREN'
