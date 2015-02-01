@@ -2,8 +2,9 @@ import sys, os
 
 from python_compiler.dispatch.dispatcher import Dispatcher
 from python_compiler.debug import dbg
+from python_compiler.parser import lex
 
-import compiler
+#import compiler
 
 """
 Rudimentary main function.
@@ -23,7 +24,8 @@ dispatcher = Dispatcher()
 with open(test_file, "r") as in_f:
     data = in_f.read()
 
-ast = compiler.parse(data)
+#ast = compiler.parse(data)
+ast = lex.yacc.parse(data)
 
 dbg.log("Parsing AST:", ast)
 

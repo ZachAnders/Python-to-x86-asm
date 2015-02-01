@@ -156,7 +156,7 @@ def p_error(t):
 
 yacc.yacc()
 #print yacc.parse("print my_test_variable")
-print yacc.parse(sys.argv[1])
+#print yacc.parse(sys.argv[1])
 #print yacc.parse("""# Example Code
 #x = -55 + 2
 #print x + 2""")
