@@ -27,14 +27,18 @@ tokens = (
 # Regular expression rules for tokens
 t_PLUS = r'\+'
 t_UMINUS = r'-'
-t_EQUALS = r'='
+#t_EQUALS = r'='
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
 
 # HIGHEST PRECEDENCE IS GIVEN TO THE EARLIEST DEFINED TOKEN
 
+def t_EQUALS(t):
+    r'='
+    return t
+
 def t_PRINT(t):
-    r'print'
+    r'print[^a-zA-Z0-9_]'
     return t
 
 def t_INPUT(t):
@@ -42,7 +46,7 @@ def t_INPUT(t):
     return t
 
 def t_NAME(t):
-    r'[a-zA-Z]+\w*'
+    r'[a-zA-Z_]+\w*'
     try:
         t.value = str(t.value)                
     except ValueError:
@@ -63,7 +67,7 @@ def t_INT(t):
         t.value = 0
     return t
 
-t_ignore = ' \t'
+t_ignore = ' \t;'
 
 def t_newline(t):
     r'\n+'
@@ -112,15 +116,19 @@ def p_list_statement(t):
 # Terminates a py_statement_list
 def p_list_statement_terminate(t):
     'py_statement_list : py_statement'
-    t[0] = t[1]
+    t[0] = [t[1]]
+
+def p_assign_statement(t):
+    'py_statement : NAME EQUALS expression'
+    t[0] = Assign([AssName(t[1], 'OP_ASSIGN')], t[3])
 
 def p_print_statement(t):
     'py_statement : PRINT expression'
     t[0] = Printnl([t[2]], None)
 
-def p_assign_statement(t):
-    'py_statement : NAME EQUALS expression'
-    t[0] = Assign([AssName(t[1], 'OP_ASSIGN')], t[3])
+def p_new_print_statement(t):
+    'py_statement : PRINT expression RPAREN'
+    t[0] = Printnl([t[2]], None)
 
 def p_discard_statement(t):
     'py_statement : expression'
