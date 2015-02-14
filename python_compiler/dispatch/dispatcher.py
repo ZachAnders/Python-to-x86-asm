@@ -58,5 +58,6 @@ class Dispatcher():
     def dispatch_many(self, ast):
         return [self.dispatch(child) for child in ast.nodes]
 
-    def writeOut(self, fname=None):
-        return self.instrWriter.export(fname=fname)
+    def write_out(self, filename=None):
+        self.mem.liveness()
+        return self.instrWriter.export(fname=filename)

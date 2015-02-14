@@ -14,6 +14,7 @@ class InstructionPipeline():
         if fname != None:
             with open(fname, "w") as out_file:
                 for instruction in self.instructions:
+                    # TODO: Iterate Memory Manager here
                     lines = instruction.write().split("\n")
                     lines = "\n".join(line.strip() for line in lines if line.strip())
                     out_file.write(lines + "\n") 

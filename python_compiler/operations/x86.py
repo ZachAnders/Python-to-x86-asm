@@ -5,61 +5,75 @@ class Operation():
     def __init__(self, mem, *args):
         self.mem = mem
         self.args = args
-        self.output_key = self.mem.allocateStack()
+        # TODO: Tell the memory manager what variables we have
+        self.output_key = self.mem.allocate()
+
+        self.mem.memoryOperation(args, [self.output_key])
 
 class ReadonlyOperation():
     def __init__(self, mem, *args):
         self.mem = mem
         self.args = args
         self.output_key = None
+        self.mem.memoryOperation(args, [])
 
 class OpAdd(Operation):
-    def write(self):
-        dbg.log(self.args[0])
-        load_op = self.mem.ensureRegister(self.args[0])
-        left = self.mem.get(self.args[0])
-        right = self.mem.get(self.args[1])
+    def __init__(self, mem, left, right):
+        self.mem = mem
+        self.left = left
+        self.right = right
 
-        out_addr = self.mem.get(self.output_key, address_only=True)
-        save_op = self.mem.saveRegister(left, self.output_key)
+        # TODO: Ensure in register
+        self.output_key = self.mem.allocate()
+
+        # Output:
+        """
+        movl (left), (temp)
+        addl (right), (temp)
+        """
+        self.mem.memoryOperation([left], [self.output_key])
+        self.mem.memoryOperation([right, self.output_key], [self.output_key])
+
+    def write(self):
+        dbg.log(self.left)
+        left = self.mem.get(self.left)
+        right = self.mem.get(self.right) # Needs to be a register!
+
+        output = self.mem.get(self.output_key)
+        load = self.mem.doLoad(left, output)
 
         return """
-            {load} # Load left Add operand
+            {load}
             addl {right_operand}, {accumulator} # Add right operand to left
-            {save}
         """.format(
-            load=load_op.write().strip(),
-            accumulator=left,
+            load=load.write(),
+            accumulator=output,
             right_operand=right,
-            output_addr=out_addr,
-            save=save_op.write().strip())
+            left_operand=left)
 
-            #movl {accumulator}, {output_addr} # Save Add result
 
 class OpUnarySub(Operation):
     def write(self):
-        load_op = self.mem.ensureRegister(self.args[0])
         node = self.mem.get(self.args[0])
+        output = self.mem.get(self.output_key)
 
-        out_addr = self.mem.get(self.output_key, address_only=True)
-        save_op = self.mem.saveRegister(node, self.output_key)
+        load_op = self.mem.doLoad(node, output)
 
         return """
             {load} # Load Unary Sub operand
-            negl {register} # Neg operand
-            {save} # Save operand
+            negl {output} # Neg operand
         """.format(
             load=load_op.write().strip(),
             register=node,
-            output_addr=out_addr,
-            save=save_op.write().strip())
-# movl {register}, {output_addr} # Save Unary Sub output
+            output_addr=output)
 
-class OpPrintnl(ReadonlyOperation):
+class OpPrintnl(Operation):
     def write(self):
-        load_op = self.mem.ensureRegister(self.args[0]).write().strip()
         left = self.mem.get(self.args[0])
-        self.mem.clearRegisters()
+        output = self.mem.get(self.output_key)
+
+        load_op = self.mem.doLoad(left, output)
+        # TODO: Callee, Caller save registers
         return """
         {load} # Load print operand
         pushl {value_reg} # Put operand on stack
@@ -67,22 +81,16 @@ class OpPrintnl(ReadonlyOperation):
         """.format(
             load=load_op,
             value_reg=left)
-        #popl {value_reg}
 
 class OpCallFunc(Operation):
     def write(self):
-        #load_op = self.mem.ensureRegister(self.args[0])
-        save_op = self.mem.saveRegister("%eax", self.output_key).write().strip()
-        self.mem.clearRegisters()
-        #left = self.mem.get(self.args[0])
-        # {load}
+        # TODO: Callee, Caller save registers
+        
         return """
         call {name} # Call func
-        {save_op} # Save func results
+        movl %eax, {output} # Save func results
         """.format(
-            name=self.args[0],
-            save_op=save_op)
-            #load=load_op.write(),
+            name=self.args[0])
 
 class OpAssign():
     def __init__(self, mem, name, value_ref):
@@ -90,22 +98,29 @@ class OpAssign():
         self.name = name
         self.value_ref = value_ref
 
+        self.mem.memoryOperation([value_ref], [self.name])
+
+        self.temp_register = self.mem.allocate() #TODO Make register
+
         # Make stack space for this variable
-        self.mem.allocateStack(self.name)
+        self.mem.allocate(self.name)
+
+        self.mem.memoryOperation([value_ref], [self.temp_register])
+        self.mem.memoryOperation([self.temp_register], [self.name])
 
     def write(self):
-        # Load the result into a register
-        load_op = self.mem.ensureRegister(self.value_ref)
         # Get the register with the result in it
         register = self.mem.get(self.value_ref)
-        # Save the register's result into this variable's new stack space
-        save_op = self.mem.saveRegister(register, self.name)
+        output = self.mem.get(self.name)
+        load_op_tmp = self.mem.doLoad(self.value_ref, self.temp_register)
+        load_op_dest = self.mem.doLoad(self.temp_register, self.name)
+
         return """
-            {load_op} # Load Assign right param
-            {save_op} # Store into Assign left param
+            {load_tmp}
+            {tmp_to_dest}
         """ .format(
-            load_op=load_op.write().strip(),
-            save_op=save_op.write().strip())
+            load_tmp=load_op_tmp.write(),
+            load_op_dest=load_op_dest.write())
 
 class OpNewConst(Operation):
     def write(self):

@@ -53,7 +53,7 @@ class Handler():
     def doAssign(self, ast):
         names, value_ref = ast.nodes, self.dispatcher.dispatch(ast.expr)
         for name in names:
-            op = OpAssign(self.mem, name.name, value_ref)
+            op = OpAssign(self.mem, self.mem.getReference(name.name), value_ref)
             self.instrWriter.write(op)
         return None
 
@@ -71,7 +71,9 @@ class Handler():
         #left, right = self.dispatcher.dispatch_many(self, ast)
         #op = OpAdd(self.mem, left, right)
         #self.instrWriter.write(op)
-        return ast.name
+
+        # Return NameIdentifier
+        return self.mem.getReference(ast.name)
 
     def doUnarySub(self, ast):
         node = self.dispatcher.dispatch(ast.expr)
