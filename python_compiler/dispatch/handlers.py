@@ -53,7 +53,7 @@ class Handler():
     def doAssign(self, ast):
         names, value_ref = ast.nodes, self.dispatcher.dispatch(ast.expr)
         for name in names:
-            op = OpAssign(self.mem, self.mem.getReference(name.name), value_ref)
+            op = OpAssign(self.mem, name.name, value_ref)
             self.instrWriter.write(op)
         return None
 

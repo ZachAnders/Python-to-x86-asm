@@ -11,88 +11,81 @@ memory_manager.py:
 """
 
 from ..debug import dbg
-from ..util.cache import LeastRecentlyUsedCache
 from ..operations.memory import OpMovl, OpStackAllocate, OpStackDeallocate, OpNoop
-from ..memory.anonymous_identifier import AnonymousIdentifier, NamedIdentifier
+from ..memory.variable_identifier import AnonymousIdentifier, NamedIdentifier, PassThroughIdentifier
+from ..util.colorize import DSATUR
 import itertools
 
 class MemoryManager:
     def __init__(self, instrWriter):
-        self.registers = ['ebx', 'ecx', 'edx', 'edi']
-        self.register_alloc = LeastRecentlyUsedCache()
-        self.memory_alloc = {}
+        self.registers = ['ebx', 'ecx', 'edx']
+        self.allocations = {}
         self.named_vars = {}
+        self.anon_vars = []
         self.instrWriter = instrWriter
         self.stack_alloc = OpStackAllocate(0)
-        self.memoryAccesses = []
+        #self.memoryAccesses = []
+        self.builtins = ['input']
+
+        for builtin in self.builtins:
+            bvar = PassThroughIdentifier(builtin)
+            self.named_vars[builtin] = bvar
+            self.allocations[bvar] = 'input'
+        #print self.allocations
+
 
     def getStackAllocation(self):
         return self.stack_alloc
        
-    def get(self, key, address_only=False):
-        #dbg.log.printstack()
+    def get(self, key):
         dbg.log("Retrieving:", key)
-        if not address_only and self.register_alloc.contains(key):
-            # Put key at the top of LRU
-            ret = "%" + self.register_alloc.getRegisterByKey(key)
-            dbg.log("Retrieved Register:", ret)
-            return ret
-        else:
-            # self.memory_alloc[key] == "-16(%ebp)" ,    ".data_label_thing
-            ret = self.memory_alloc[key]
-            dbg.log("Retrieved Address:", ret)
-            return ret
+        try:
+            return self.allocations[key]
+        except KeyError, e:
+            print self.allocations
+            print "Failed get key: %s" % str(key)
+            print key.printAllocation()
+            raise e
 
-    def allocate(self, name=None, size=4):
+    def allocate(self, name=None, spillable=True):
         if name == None:
-            name = AnonymousIdentifier()
-        dbg.log("Allocating stack space for '", name, "'")
-        self.stack_alloc.size += size
-        self.memory_alloc[name] = "-" + str(self.stack_alloc.size) + "(%ebp)"
-        return name
-
-    def ensureRegister(self, name):
-        if not self.register_alloc.contains(name):
-            addr = self.memory_alloc[name]
-            register = "%" + self.register_alloc.set(name)
-
-            movl = OpMovl(addr, register)
-            return movl
+            newVar = AnonymousIdentifier(spillable=spillable)
+            self.anon_vars.append(newVar)
         else:
-            self.register_alloc.prioritize(name)
-            return OpNoop()
+            if name in self.named_vars:
+                return self.named_vars[name]
+            newVar = NamedIdentifier(name, spillable=spillable)
+            self.named_vars[name] = newVar
+
+        return newVar
 
     def doLoad(self, left, right):
-        load = OpMovl(left, right)
+        if left != right:
+            load = OpMovl(left, right)
+        else:
+            load = OpNoop()
 
         return load
-
-    def saveRegister(self, register, key):
-        addr = self.memory_alloc[key]
-
-        movl = OpMovl(register, addr)
-
-        register = register.replace("%", "")
-        dbg.log("CLEARING REGISTER: ", register)
-        self.register_alloc.clearRegister(register)
-        return movl
 
     def finalize(self):
         op = OpStackDeallocate(self.stack_alloc.size)
         self.instrWriter.write(op)
 
-    def clearRegisters(self):
-        self.register_alloc.clearAll()
-
-    def memoryOperation(self, readsFrom, writeTo):
-        self.memoryAccesses.append((list(readsFrom), list(writeTo)))
+#    def memoryOperation(self, readsFrom, writeTo):
+#        self.memoryAccesses.append((list(readsFrom), list(writeTo)))
 
     def getReference(self, name):
-        if name not in self.named_vars:
-            self.named_vars[name] = NamedIdentifier(name)
-
+#        if name in self.builtins:
+#            return PassThroughIdentifier(name)
+#        if name not in self.named_vars:
+#            self.named_vars[name] = NamedIdentifier(name)
         return self.named_vars[name]
-        
+
+    def getAccesses(self):
+        memoryAccesses = []
+        for instr in self.instrWriter.instructions:
+            memoryAccesses += instr.get_memory_operands()
+        return memoryAccesses
 
     def liveness(self):
         def is_alive(tmp, rest_of_accesses):
@@ -102,19 +95,20 @@ class MemoryManager:
                 elif tmp in writes:
                     return False
             return False
-                
+        
         liveness = []
         currentVars = []
-        for idx, (_, writes) in enumerate(self.memoryAccesses):
+        memoryAccesses = self.getAccesses()
+        for idx, (_, writes) in enumerate(memoryAccesses):
             candidates = writes + currentVars
             currentVars = []
             for term in candidates:
-                if is_alive(term, self.memoryAccesses[idx+1:]):
+                if is_alive(term, memoryAccesses[idx+1:]):
                     currentVars.append(term)
 
             liveness.append(currentVars)
-        edges = {}
-        print liveness
+        edges = {alloc:[] for alloc in self.named_vars.values() + self.anon_vars if alloc.shouldAllocate()}
+#        print liveness
         for iteration in liveness:
             perms = itertools.permutations(iteration, 2)
             for (l, r) in perms:
@@ -122,6 +116,17 @@ class MemoryManager:
                     edges[l] = []
                 if r not in edges[l]:
                     edges[l].append(r)
-        for edge in edges:
-            print edge, ":", edges[edge]
 
+        c = DSATUR(edges, len(self.registers))
+        c.run()
+        allocs = c.getColor()
+        for alloc_var in allocs:
+            color_id = allocs[alloc_var]
+            if color_id < len(self.registers):
+                # Goes in register
+                self.allocations[alloc_var] = "%" + self.registers[color_id]
+            else:
+                # Goes in memory
+                self.stack_alloc.size += 4
+                self.allocations[alloc_var] = "-" + str(self.stack_alloc.size) + "(%ebp)"
+#        print self.allocations

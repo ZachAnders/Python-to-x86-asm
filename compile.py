@@ -1,7 +1,6 @@
 import sys, os
 
 from python_compiler.debug import dbg
-from python_compiler.parser import lex
 
 from python_compiler.compiler_main.py_compiler import Compiler
 

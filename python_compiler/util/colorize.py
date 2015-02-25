@@ -1,17 +1,25 @@
 class DSATUR:
-    def __init__(self, graph, colorAmount):
+    def __init__(self, graph, unspillableSlots):
         self.graph = graph
-        self.colorAmount = colorAmount
-        self.saturation = {node:colorAmount for node in graph}
+        self.unspillableSlots = unspillableSlots
         self.color = {node:None for node in graph}
+        self.saturation = {node:0 for node in graph}
         self.failedNode = None
 
+    def markUnspillable(self):
+        for node in self.graph:
+            if not node.canSpill():
+                self.setColor(node)
+                self.checkValue(node)
+
+        
     def run(self):
+        self.markUnspillable()
         W = self.graph
         while W:
             node = self.getHighestSaturation(W)
-            self.setColor(node)
-            self.checkValue(node)
+            if not self.color[node]:
+                self.setColor(node)
             self.setSaturation(node)
             W.pop(node)
 
@@ -27,7 +35,7 @@ class DSATUR:
         self.color[node] = color
 
     def checkValue(self, node):
-        if ( self.color[node] == self.colorAmount ):
+        if ( self.color[node] >= self.unspillableSlots):
             self.failedNode = node
             raise ValueError('Cannot resolve graph')
        

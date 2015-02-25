@@ -1,4 +1,6 @@
-class OpMovl():
+from .base import AbstractOperation
+
+class OpMovl(AbstractOperation):
     def __init__(self, source, dest):
         self.src = source
         self.dst = dest
@@ -8,11 +10,11 @@ class OpMovl():
         movl %s, %s
         """ % (self.src, self.dst)
 
-class OpNoop():
+class OpNoop(AbstractOperation):
     def write(self):
         return ""
 
-class OpStackAllocate():
+class OpStackAllocate(AbstractOperation):
     def __init__(self, size):
         self.size = size
 
@@ -22,7 +24,7 @@ class OpStackAllocate():
         """.format(
             size=self.size)
 
-class OpStackDeallocate():
+class OpStackDeallocate(AbstractOperation):
     def __init__(self, size):
         self.size = size
 

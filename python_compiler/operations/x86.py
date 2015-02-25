@@ -1,38 +1,35 @@
-
 from ..debug import dbg
+from .base import AbstractOperation
 
-class Operation():
+class BasicOperation(AbstractOperation):
     def __init__(self, mem, *args):
         self.mem = mem
         self.args = args
-        # TODO: Tell the memory manager what variables we have
-        self.output_key = self.mem.allocate()
 
-        self.mem.memoryOperation(args, [self.output_key])
+        if self.HAS_OUTPUT_KEY:
+            self.output_key = self.mem.allocate(spillable=self.SPILLABLE)
+            self.outputs = [self.output_key]
+        else:
+            self.outputs = []
 
-class ReadonlyOperation():
-    def __init__(self, mem, *args):
-        self.mem = mem
-        self.args = args
-        self.output_key = None
-        self.mem.memoryOperation(args, [])
+    def get_memory_operands(self):
+        return [(self.args, self.outputs)]
 
-class OpAdd(Operation):
+class OpAdd(AbstractOperation):
+    HAS_OUTPUT_KEY = True
+    SPILLABLE = False
     def __init__(self, mem, left, right):
         self.mem = mem
         self.left = left
         self.right = right
 
-        # TODO: Ensure in register
-        self.output_key = self.mem.allocate()
+        self.output_key = self.mem.allocate(spillable=False)
 
         # Output:
         """
         movl (left), (temp)
         addl (right), (temp)
         """
-        self.mem.memoryOperation([left], [self.output_key])
-        self.mem.memoryOperation([right, self.output_key], [self.output_key])
 
     def write(self):
         dbg.log(self.left)
@@ -50,9 +47,16 @@ class OpAdd(Operation):
             accumulator=output,
             right_operand=right,
             left_operand=left)
+    def get_memory_operands(self):
+        return [
+                ([self.left], [self.output_key]),
+                ([self.right, self.output_key], [self.output_key])
+                ]
 
 
-class OpUnarySub(Operation):
+class OpUnarySub(BasicOperation):
+    HAS_OUTPUT_KEY = True
+    SPILLABLE = False
     def write(self):
         node = self.mem.get(self.args[0])
         output = self.mem.get(self.output_key)
@@ -64,73 +68,90 @@ class OpUnarySub(Operation):
             negl {output} # Neg operand
         """.format(
             load=load_op.write().strip(),
-            register=node,
-            output_addr=output)
+            output=output)
 
-class OpPrintnl(Operation):
+class OpPrintnl(BasicOperation):
+    HAS_OUTPUT_KEY = False
     def write(self):
         left = self.mem.get(self.args[0])
-        output = self.mem.get(self.output_key)
 
-        load_op = self.mem.doLoad(left, output)
         # TODO: Callee, Caller save registers
         return """
-        {load} # Load print operand
+        pushl %ebx
+        pushl %ecx
+        pushl %edx
         pushl {value_reg} # Put operand on stack
         call print_int_nl # Call print
+        popl {value_reg}
+        popl %edx
+        popl %ecx
+        popl %ebx
         """.format(
-            load=load_op,
             value_reg=left)
 
-class OpCallFunc(Operation):
+class OpCallFunc(BasicOperation):
+    HAS_OUTPUT_KEY = True
+    SPILLABLE = True # Can be spilled, because 1 movl operand is eax
     def write(self):
+        fname = self.mem.get(self.args[0])
+        output = self.mem.get(self.output_key)
         # TODO: Callee, Caller save registers
-        
         return """
+        pushl %ebx
+        pushl %ecx
+        pushl %edx
         call {name} # Call func
+        popl %edx
+        popl %ecx
+        popl %ebx
         movl %eax, {output} # Save func results
         """.format(
-            name=self.args[0])
+            name=fname,
+            output=output)
 
-class OpAssign():
+class OpAssign(AbstractOperation):
     def __init__(self, mem, name, value_ref):
         self.mem = mem
         self.name = name
         self.value_ref = value_ref
 
-        self.mem.memoryOperation([value_ref], [self.name])
+        # Allocate space for this variable
+        self.alloc_var = self.mem.allocate(self.name)
 
-        self.temp_register = self.mem.allocate() #TODO Make register
+        self.temp_register = self.mem.allocate(spillable=False)
 
-        # Make stack space for this variable
-        self.mem.allocate(self.name)
 
-        self.mem.memoryOperation([value_ref], [self.temp_register])
-        self.mem.memoryOperation([self.temp_register], [self.name])
 
     def write(self):
         # Get the register with the result in it
-        register = self.mem.get(self.value_ref)
-        output = self.mem.get(self.name)
-        load_op_tmp = self.mem.doLoad(self.value_ref, self.temp_register)
-        load_op_dest = self.mem.doLoad(self.temp_register, self.name)
+        source = self.mem.get(self.value_ref)
+        temp = self.mem.get(self.temp_register)
+        output = self.mem.get(self.alloc_var)
+        load_op_tmp = self.mem.doLoad(source, temp)
+        load_op_dest = self.mem.doLoad(temp, output)
 
         return """
             {load_tmp}
-            {tmp_to_dest}
+            {load_op_dest}
         """ .format(
             load_tmp=load_op_tmp.write(),
             load_op_dest=load_op_dest.write())
+    def get_memory_operands(self):
+        return [
+                ([self.value_ref], [self.temp_register]),
+                ([self.temp_register], [self.alloc_var])
+                ]
 
-class OpNewConst(Operation):
+class OpNewConst(BasicOperation):
+    HAS_OUTPUT_KEY = True
     def write(self):
         return """
         movl ${value}, {dest} # Allocate new constant
         """.format(
             value=self.args[0],
-            dest=self.mem.get(self.output_key, address_only=True))
+            dest=self.mem.get(self.output_key))
 
-class OpStmt(ReadonlyOperation):
+class OpStmt(BasicOperation):
     def write(self):
         return """
         pushl %ebp
@@ -139,7 +160,7 @@ class OpStmt(ReadonlyOperation):
         """.format(
             allocate_stack=self.mem.getStackAllocation().write())
 
-class OpModule(ReadonlyOperation):
+class OpModule(BasicOperation):
     def write(self):
         #self.mem.ensureRegister(self.args[0])
         return """
@@ -147,7 +168,7 @@ class OpModule(ReadonlyOperation):
         main:
         """
 
-class OpReturn(ReadonlyOperation):
+class OpReturn(BasicOperation):
     def write(self):
         return """
         movl $0, %eax # Zero eax return code
