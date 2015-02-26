@@ -1,6 +1,6 @@
 class AbstractOperation():
     HAS_OUTPUT_KEY = False # Defaults to False
-    SPILLABLE = False # Defaults to spillable
+    HAS_TEMP_REG = False # Default to no temp reg
 
     def get_memory_operands(self):
         return []

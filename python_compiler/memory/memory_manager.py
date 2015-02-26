@@ -108,7 +108,6 @@ class MemoryManager:
 
             liveness.append(currentVars)
         edges = {alloc:[] for alloc in self.named_vars.values() + self.anon_vars if alloc.shouldAllocate()}
-#        print liveness
         for iteration in liveness:
             perms = itertools.permutations(iteration, 2)
             for (l, r) in perms:

@@ -6,69 +6,96 @@ class BasicOperation(AbstractOperation):
         self.mem = mem
         self.args = args
 
+
         if self.HAS_OUTPUT_KEY:
-            self.output_key = self.mem.allocate(spillable=self.SPILLABLE)
+            self.output_key = self.mem.allocate(spillable=True)
             self.outputs = [self.output_key]
+            self.accesses = [(self.args, self.outputs)]
         else:
             self.outputs = []
+            self.accesses = [(self.args, [])]
+
+        if self.HAS_TEMP_REG:
+            self.temp_reg = self.mem.allocate(spillable=False)
+            #self.accesses = [(self.args, [self.temp_reg])] + self.accesses
+            self.accesses = [
+                    (self.args, [self.temp_reg]),
+                    (self.args, [self.temp_reg]),
+                    ([self.temp_reg], [self.outputs])]
+
 
     def get_memory_operands(self):
-        return [(self.args, self.outputs)]
+        return self.accesses
 
 class OpAdd(AbstractOperation):
     HAS_OUTPUT_KEY = True
-    SPILLABLE = False
+    HAS_TEMP_REG = True
     def __init__(self, mem, left, right):
         self.mem = mem
         self.left = left
         self.right = right
 
-        self.output_key = self.mem.allocate(spillable=False)
-
-        # Output:
-        """
-        movl (left), (temp)
-        addl (right), (temp)
-        """
+        self.output_key = self.mem.allocate(spillable=True)
+        self.temp_reg = self.mem.allocate(spillable=False)
+        assert not self.temp_reg.canSpill()
 
     def write(self):
         dbg.log(self.left)
         left = self.mem.get(self.left)
-        right = self.mem.get(self.right) # Needs to be a register!
+        right = self.mem.get(self.right)
 
         output = self.mem.get(self.output_key)
-        load = self.mem.doLoad(left, output)
+        temp_reg = self.mem.get(self.temp_reg)
+
+        load_left = self.mem.doLoad(left, temp_reg)
+        save_result = self.mem.doLoad(temp_reg, output)
+
+        assert not self.temp_reg.canSpill()
 
         return """
-            {load}
-            addl {right_operand}, {accumulator} # Add right operand to left
+            {load_left}
+            addl {right_operand}, {temp_reg} # Add right operand to left
+            {save_result}
         """.format(
-            load=load.write(),
-            accumulator=output,
+            load_left=load_left.write(),
+            temp_reg=temp_reg,
             right_operand=right,
-            left_operand=left)
+            save_result=save_result.write())
+            
     def get_memory_operands(self):
         return [
-                ([self.left], [self.output_key]),
-                ([self.right, self.output_key], [self.output_key])
+                ([self.left], [self.temp_reg]),
+                ([self.right, self.temp_reg], [self.temp_reg]),
+                ([self.temp_reg], [self.output_key]),
                 ]
 
 
 class OpUnarySub(BasicOperation):
     HAS_OUTPUT_KEY = True
-    SPILLABLE = False
+    HAS_TEMP_REG = True
     def write(self):
         node = self.mem.get(self.args[0])
         output = self.mem.get(self.output_key)
+        temp_reg = self.mem.get(self.temp_reg)
 
-        load_op = self.mem.doLoad(node, output)
+        load_op = self.mem.doLoad(node, temp_reg)
+        save_op = self.mem.doLoad(temp_reg, output)
 
         return """
             {load} # Load Unary Sub operand
             negl {output} # Neg operand
+            {save} # Save Unary Sub result
         """.format(
             load=load_op.write().strip(),
-            output=output)
+            save=save_op.write().strip(),
+            output=temp_reg)
+
+    def get_memory_operands(self):
+        return [
+                ([self.args[0]], [self.temp_reg]),
+                ([self.temp_reg], [self.temp_reg]),
+                ([self.temp_reg], [self.output_key]),
+                ]
 
 class OpPrintnl(BasicOperation):
     HAS_OUTPUT_KEY = False
@@ -91,7 +118,6 @@ class OpPrintnl(BasicOperation):
 
 class OpCallFunc(BasicOperation):
     HAS_OUTPUT_KEY = True
-    SPILLABLE = True # Can be spilled, because 1 movl operand is eax
     def write(self):
         fname = self.mem.get(self.args[0])
         output = self.mem.get(self.output_key)
@@ -119,8 +145,6 @@ class OpAssign(AbstractOperation):
         self.alloc_var = self.mem.allocate(self.name)
 
         self.temp_register = self.mem.allocate(spillable=False)
-
-
 
     def write(self):
         # Get the register with the result in it

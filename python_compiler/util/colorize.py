@@ -18,9 +18,9 @@ class DSATUR:
         W = self.graph
         while W:
             node = self.getHighestSaturation(W)
-            if not self.color[node]:
+            if self.color[node] == None:
                 self.setColor(node)
-            self.setSaturation(node)
+                self.setSaturation(node)
             W.pop(node)
 
     def setColor(self, node):
@@ -37,6 +37,8 @@ class DSATUR:
     def checkValue(self, node):
         if ( self.color[node] >= self.unspillableSlots):
             self.failedNode = node
+            print node
+            node.printAllocation()
             raise ValueError('Cannot resolve graph')
        
     def setSaturation(self, node):
