@@ -50,6 +50,14 @@ class Dispatcher():
             Name        : self.handler.doName,
             Add         : self.handler.doAdd,
             UnarySub    : self.handler.doUnarySub,
+            List        : self.handler.doList,
+            Or          : self.handler.doOr,
+            And         : self.handler.doAnd,
+            Compare     : self.handler.doCompare,
+            Not         : self.handler.doNot,
+            Dict        : self.handler.doDict,
+            Subscript   : self.handler.doSubscript,
+            IfExp       : self.handler.doIfExp,
         }
 
         # The keys are Python classes, so we can dispatch directly with the class of 'ast'
