@@ -80,3 +80,57 @@ class Handler():
         op = OpUnarySub(self.mem, node)
         self.instrWriter.write(op)
         return op.output_key
+
+    def doList(self, ast):
+        nodes = [self.dispatcher.dispatch(item) for item in ast.expr]
+        op = OpList(self.mem, nodes)
+        self.instrWriter.write(op)
+        return op.output_key 
+    
+    def doDict(self, ast):
+        # Uses a tuple
+        nodes = [(self.dispatcher.dispatch(ast.left),self.dispatcher.dispatch(ast.right)) for item in ast.expr]
+        op = OpDict(self.mem, nodes)
+        self.instrWriter.write(op)
+        return op.output_key
+
+    def doOr(self, ast):
+        left = self.dispatcher.dispatch(ast.left)
+        right = self.dispatcher.dispatch(ast.right)
+        op = OpOr(self.mem, left, right)
+        self.instrWriter.write(op)
+        return op.output_key
+    
+    def doAnd(self, ast):
+        left = self.dispatcher.dispatch(ast.left)
+        right = self.dispatcher.dispatch(ast.right)
+        op = OpAnd(self.mem, left, right)
+        self.instrWriter.write(op)
+        return op.output_key
+
+    def doCompare(self, ast):
+    # Compare(expr, [(OP, expr)] )
+        left = self.dispatcher.dispatch(ast.left)
+        (middle, right) = self.dispatcher.dispatch(ast.right)
+        op = OpComapre(self.mem, left, middle, right)
+        self.instrWriter.write(op)
+        return op.output_key
+
+
+    def doNot(self, ast):
+        node = self.dispatcher.dispatch(ast.expr)
+        op = OpNot(self.mem, node)
+        self.instrWriter.write(op)
+        return op.output_key
+
+    def doSubscript(self, ast):
+    # Subscript(Name('Var'), 'OP_APPLY', [Const(5)])
+        names, apply_typ, value_ref = ast.nodes, ast.nodes, self.dispatcher.dispatch(ast.expr)
+        for name in names:
+            op = OpSubscript(self.mem, name.name, value_ref)
+            self.instrWriter.write(op)
+        return op.output_key
+
+    """def doIfExp(self, ast):"""
+
+
