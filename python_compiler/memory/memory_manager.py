@@ -15,6 +15,7 @@ from ..operations.memory import OpMovl, OpStackAllocate, OpStackDeallocate, OpNo
 from ..memory.variable_identifier import AnonymousIdentifier, NamedIdentifier, PassThroughIdentifier
 from ..util.colorize import DSATUR
 import itertools
+from .allocation_identifier import RegisterAllocation, StackAllocation
 
 class MemoryManager:
     def __init__(self, instrWriter):
@@ -123,9 +124,11 @@ class MemoryManager:
             color_id = allocs[alloc_var]
             if color_id < len(self.registers):
                 # Goes in register
-                self.allocations[alloc_var] = "%" + self.registers[color_id]
+                #self.allocations[alloc_var] = "%" + self.registers[color_id]
+                self.allocations[alloc_var] = RegisterAllocation(self.registers[color_id])
             else:
                 # Goes in memory
                 self.stack_alloc.size += 4
-                self.allocations[alloc_var] = "-" + str(self.stack_alloc.size) + "(%ebp)"
+                #self.allocations[alloc_var] = "-" + str(self.stack_alloc.size) + "(%ebp)"
+                self.allocations[alloc_var] = StackAllocation(self.stack_alloc.size)
 #        print self.allocations

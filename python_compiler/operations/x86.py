@@ -1,31 +1,6 @@
 from ..debug import dbg
-from .base import AbstractOperation
-
-class BasicOperation(AbstractOperation):
-    def __init__(self, mem, *args):
-        self.mem = mem
-        self.args = args
-
-
-        if self.HAS_OUTPUT_KEY:
-            self.output_key = self.mem.allocate(spillable=True)
-            self.outputs = [self.output_key]
-            self.accesses = [(self.args, self.outputs)]
-        else:
-            self.outputs = []
-            self.accesses = [(self.args, [])]
-
-        if self.HAS_TEMP_REG:
-            self.temp_reg = self.mem.allocate(spillable=False)
-            #self.accesses = [(self.args, [self.temp_reg])] + self.accesses
-            self.accesses = [
-                    (self.args, [self.temp_reg]),
-                    (self.args, [self.temp_reg]),
-                    ([self.temp_reg], [self.outputs])]
-
-
-    def get_memory_operands(self):
-        return self.accesses
+from .base import AbstractOperation, BasicOperation
+from .helpers import call_func_asm
 
 class OpAdd(AbstractOperation):
     HAS_OUTPUT_KEY = True
@@ -101,39 +76,17 @@ class OpPrintnl(BasicOperation):
     HAS_OUTPUT_KEY = False
     def write(self):
         left = self.mem.get(self.args[0])
+        print_func = 'print_int_nl'
 
-        # TODO: Callee, Caller save registers
-        return """
-        pushl %ebx
-        pushl %ecx
-        pushl %edx
-        pushl {value_reg} # Put operand on stack
-        call print_int_nl # Call print
-        popl {value_reg}
-        popl %edx
-        popl %ecx
-        popl %ebx
-        """.format(
-            value_reg=left)
+        return call_func_asm(print_func, arguments=left)
 
 class OpCallFunc(BasicOperation):
     HAS_OUTPUT_KEY = True
     def write(self):
         fname = self.mem.get(self.args[0])
         output = self.mem.get(self.output_key)
-        # TODO: Callee, Caller save registers
-        return """
-        pushl %ebx
-        pushl %ecx
-        pushl %edx
-        call {name} # Call func
-        popl %edx
-        popl %ecx
-        popl %ebx
-        movl %eax, {output} # Save func results
-        """.format(
-            name=fname,
-            output=output)
+
+        return call_func_asm(fname, output=output)
 
 class OpAssign(AbstractOperation):
     def __init__(self, mem, name, value_ref):
@@ -186,7 +139,6 @@ class OpStmt(BasicOperation):
 
 class OpModule(BasicOperation):
     def write(self):
-        #self.mem.ensureRegister(self.args[0])
         return """
         .global main
         main:

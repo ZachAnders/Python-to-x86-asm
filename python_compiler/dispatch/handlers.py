@@ -1,4 +1,5 @@
 from ..operations.x86 import OpAdd, OpModule, OpStmt, OpPrintnl, OpAssign, OpCallFunc, OpUnarySub, OpNewConst, OpReturn
+from ..operations.polymorphism import OpIsBig
 
 class Handler():
     def __init__(self, dispatcher, mem, instrWriter):
@@ -9,9 +10,19 @@ class Handler():
     def doAdd(self, ast):
         left = self.dispatcher.dispatch(ast.left)
         right = self.dispatcher.dispatch(ast.right)
-        op = OpAdd(self.mem, left, right)
-        self.instrWriter.write(op)
-        return op.output_key
+        
+        both_lists = OpAnd(OpIsBig(left), OpIsBig(right))
+
+        do_ints = OpIntAdd(left, right)
+        do_lists = OpListAdd(left, right)
+
+        result = self.doBranch(both_lists, do_lists, do_ints)
+
+        return result
+
+        #op = OpAdd(self.mem, left, right)
+        #self.instrWriter.write(op)
+        #return op.output_key
         
     def doModule(self, ast):
         op = OpModule(self.mem)
