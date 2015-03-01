@@ -5,10 +5,12 @@ from .helpers import call_func_asm, CONST
 class OpAdd(AbstractOperation):
     HAS_OUTPUT_KEY = True
     HAS_TEMP_REG = True
-    def __init__(self, mem, left, right):
+    def __init__(self, mem, left, right, label_list, label_int):
         self.mem = mem
         self.left = left
         self.right = right
+        self.label_list = label_list
+        self.label_int = label_int
 
         self.output_key = self.mem.allocate(spillable=True)
         self.temp_reg = self.mem.allocate(spillable=False)
@@ -174,6 +176,57 @@ class OpJumpOnBool(AbstractOperation):
                 label=self.label,
                 value=self.boolean)
 
+class OpJumpOnSame(AbstractOperation):
+    HAS_OUTPUT_KEY = False
+    def __init__(self, mem, leftCondition, rightCondition, label):
+        self.mem = mem
+        self.leftCondition = leftCondition 
+        self.rightCondition = rightCondition 
+        self.label = label
+        self.temp = self.mem.allocate(spillable=True)
+
+    def write(self):
+        left_cond_alloc = self.mem.get(self.leftCondition)
+        right_cond_alloc = self.mem.get(self.rightCondition)
+
+        temp_alloc = self.mem.get(self.temp)
+
+        func_left = call_func_asm('is_big',
+                arguments=[left_cond_alloc], output=temp_alloc)
+        func_right = call_func_asm('is_big',
+                arguments=[right_cond_alloc])
+        
+        return """
+            {func_left}
+            {func_right}
+            cmpl ${RESULT_LEFT},{RESULT_RIGHT}
+            je {label}
+            """.format(func_left=func_left,
+                    func_right=func_right,
+                    label=self.label,
+                    )
+
+class OpJumpOnTag(AbstractOperation):
+    HAS_OUTPUT_KEY = False
+    def __init__(self, mem, condition, label, tag, isTag=True):
+        self.mem = mem
+        self.condition = condition 
+        self.label = label
+        self.tag = tag
+        self.isTag = isTag
+
+    def write(self):
+        cond_alloc = self.mem.get(self.condition)
+
+        func = call_func_asm('is_'+self.tag,
+                arguments=[cond_alloc])
+        return """
+            {func}
+            cmpl ${value1}, %eax 
+            je {label}
+            """.format(func=func,
+                    label=self.label,
+                    value=self.isTag)
 
 class OpNewConst(BasicOperation):
     HAS_OUTPUT_KEY = True

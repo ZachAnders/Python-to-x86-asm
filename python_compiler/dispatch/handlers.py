@@ -11,21 +11,38 @@ class Handler():
         self.dispatcher = dispatcher
 
     def doAdd(self, ast):
+        # Lables:
+        label_type = LabelManager.newLabel("type_set_same")
+        label_list = LabelManager.newLabel("list_addition")
+        label_int = LabelManager.newLabel("int_addition")
+
+        # Execute Left and Right
         left = self.dispatcher.dispatch(ast.left)
         right = self.dispatcher.dispatch(ast.right)
         
-        both_lists = OpAnd(OpIsBig(left), OpIsBig(right))
+        # Check if both are the same Type:
+        jump_type = OpJumpOnSame(self.mem, left, right, label_type)
+        self.instrWriter.write(jump_type)
+
+        # Check if list:
+        jump_list = OpJumpOnTag(self.mem, left, label_list, 'big', isTag=True)
+        
+        # Handle Addition:
+        #op = OpAdd(self.mem, left, right)
+
+        op = OpAddNew(self.mem, left, right, label_list, lable_int)
+        """
+            - Call Function list_add for label_list
+            - Perform a regular add for lable_int
+        """
+        """both_lists = OpAnd(OpIsBig(left), OpIsBig(right))
 
         do_ints = OpIntAdd(left, right)
         do_lists = OpListAdd(left, right)
 
-        result = self.doBranch(both_lists, do_lists, do_ints)
+        result = self.doBranch(both_lists, do_lists, do_ints)"""
 
         return result
-
-        #op = OpAdd(self.mem, left, right)
-        #self.instrWriter.write(op)
-        #return op.output_key
         
     def doModule(self, ast):
         op = OpModule(self.mem)
