@@ -12,13 +12,14 @@ class OpIsBig(BasicOperation):
         output = self.mem.get(self.output_key)
 
         is_big = call_func_asm('is_big', arguments=[myObj], output=output)
+        inject_code = myObj.inject('BOOL', output)
 
         return """
             {is_big}
-            {ptr.injectBool}
+            {inject}
         """.format(
-                ptr=myObj,
-                is_big=is_big
+                is_big=is_big,
+                inject=inject_code,
                 )
         
     def get_memory_operands(self):

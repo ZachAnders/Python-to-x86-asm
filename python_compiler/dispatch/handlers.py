@@ -1,5 +1,8 @@
-from ..operations.x86 import OpAdd, OpModule, OpStmt, OpPrintnl, OpAssign, OpCallFunc, OpUnarySub, OpNewConst, OpReturn
+from ..operations.x86 import OpAdd, OpModule, OpStmt, OpPrintnl, OpAssign
+from ..operations.x86 import OpCallFunc, OpUnarySub, OpNewConst, OpReturn, OpJumpOnBool
+from ..operations.x86 import OpBoolSetCondition, OpList
 from ..operations.polymorphism import OpIsBig
+from ..operations.helpers import LabelManager
 
 class Handler():
     def __init__(self, dispatcher, mem, instrWriter):
@@ -93,14 +96,14 @@ class Handler():
         return op.output_key
 
     def doList(self, ast):
-        nodes = [self.dispatcher.dispatch(item) for item in ast.expr]
+        nodes = [self.dispatcher.dispatch(item) for item in ast.nodes]
         op = OpList(self.mem, nodes)
         self.instrWriter.write(op)
         return op.output_key 
     
     def doDict(self, ast):
         # Uses a tuple
-        nodes = [(self.dispatcher.dispatch(ast.left),self.dispatcher.dispatch(ast.right)) for item in ast.expr]
+        nodes = [(self.dispatcher.dispatch(ast.left), self.dispatcher.dispatch(ast.right)) for item in ast.expr]
         op = OpDict(self.mem, nodes)
         self.instrWriter.write(op)
         return op.output_key
@@ -113,17 +116,32 @@ class Handler():
         return op.output_key
     
     def doAnd(self, ast):
-        left = self.dispatcher.dispatch(ast.left)
-        right = self.dispatcher.dispatch(ast.right)
-        op = OpAnd(self.mem, left, right)
+        # Labels:
+        label_false = LabelManager.newLabel("and_set_false")
+        label_end = LabelManager.newLabel("and_end")
+
+        # Execute Left
+        left = self.dispatcher.dispatch(ast.nodes[0])
+
+        # Check left, jump if False
+        jump_false = OpJumpOnBool(self.mem, left, label_false, boolean=False)
+        self.instrWriter.write(jump_false)
+
+        # Execute Right
+        right = self.dispatcher.dispatch(ast.nodes[1])
+
+        op = OpBoolSetCondition(self.mem,
+                left, right,
+                label_false, label_end)
         self.instrWriter.write(op)
+
         return op.output_key
 
     def doCompare(self, ast):
     # Compare(expr, [(OP, expr)] )
         left = self.dispatcher.dispatch(ast.left)
         (middle, right) = self.dispatcher.dispatch(ast.right)
-        op = OpComapre(self.mem, left, middle, right)
+        op = OpCompare(self.mem, left, middle, right)
         self.instrWriter.write(op)
         return op.output_key
 

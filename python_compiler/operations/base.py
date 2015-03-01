@@ -1,4 +1,4 @@
-class AbstractOperation():
+class AbstractOperation(object):
     HAS_OUTPUT_KEY = False # Defaults to False
     HAS_TEMP_REG = False # Default to no temp reg
 

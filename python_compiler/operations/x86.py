@@ -1,6 +1,6 @@
 from ..debug import dbg
 from .base import AbstractOperation, BasicOperation
-from .helpers import call_func_asm
+from .helpers import call_func_asm, CONST
 
 class OpAdd(AbstractOperation):
     HAS_OUTPUT_KEY = True
@@ -76,9 +76,10 @@ class OpPrintnl(BasicOperation):
     HAS_OUTPUT_KEY = False
     def write(self):
         left = self.mem.get(self.args[0])
-        print_func = 'print_int_nl'
+        #print_func = 'print_int_nl'
 
-        return call_func_asm(print_func, arguments=left)
+        #return call_func_asm(print_func, arguments=[left])
+        return call_func_asm('print_any', arguments=[left])
 
 class OpCallFunc(BasicOperation):
     HAS_OUTPUT_KEY = True
@@ -119,14 +120,116 @@ class OpAssign(AbstractOperation):
                 ([self.temp_register], [self.alloc_var])
                 ]
 
+class OpBoolSetCondition(BasicOperation):
+    # TODO: Liveness?
+    HAS_OUTPUT_KEY = True
+    HAS_TEMP_REG = True
+    def write(self):
+        false_label = self.args[2]
+        end_label = self.args[3]
+
+        output = self.mem.get(self.output_key)
+        tmp_reg = self.mem.get(self.temp_reg)
+        left = self.mem.get(self.args[0])
+        right = self.mem.get(self.args[1])
+        
+        return """
+        movl {right}, {output}
+        jmp {end_label}
+
+        {false_label}:
+        movl {left}, {tmp_reg}
+        movl {tmp_reg}, {output}
+        jmp {end_label}
+
+        {end_label}:
+        """.format(
+                false_label=false_label,
+                end_label=end_label,
+                output=output,
+                tmp_reg=tmp_reg,
+                right=right,
+                left=left
+                )
+
+class OpJumpOnBool(AbstractOperation):
+    # TODO: Liveness?
+    HAS_OUTPUT_KEY = False
+    def __init__(self, mem, condition, label, boolean=True):
+        self.mem = mem
+        self.condition = condition
+        self.label = label
+        self.boolean = int(boolean)
+        
+    def write(self):
+        cond_alloc = self.mem.get(self.condition)
+
+        func = call_func_asm('is_true',
+                arguments=[cond_alloc])
+        return """
+            {func}
+            cmpl ${value}, %eax
+            je {label}
+        """.format(func=func,
+                label=self.label,
+                value=self.boolean)
+
+
 class OpNewConst(BasicOperation):
     HAS_OUTPUT_KEY = True
     def write(self):
+        output_alloc = self.mem.get(self.output_key)
         return """
         movl ${value}, {dest} # Allocate new constant
+        {inject}
         """.format(
             value=self.args[0],
-            dest=self.mem.get(self.output_key))
+            dest=self.mem.get(self.output_key),
+            inject=output_alloc.inject('INT'),
+            )
+
+class OpLabel(AbstractOperation):
+    def __init__(self, label_name):
+        self.label = label_name
+    def write(self):
+        return "." + self.label
+
+class OpList(AbstractOperation):
+    def __init__(self, mem, nodes):
+        self.mem = mem
+        self.output_key = self.mem.allocate(spillable=True)
+        self.temp_var = self.mem.allocate(spillable=True)
+
+    # TODO: Liveness?
+    def add_elem(self, idx, elem_ref):
+        elem_alloc = self.mem.get(elem_ref)
+        out_alloc = self.mem.get(self.output_key)
+
+        append = call_func_asm('set_subscript', [out_alloc, CONST(idx), elem_alloc])
+
+        return append
+
+    def write(self):
+        output_alloc = self.mem.get(self.output_key)
+        elems = self.args[0]
+
+        mk_list = call_func_asm('create_list', [CONST(len(elems))], output_alloc)
+        elem_code = ""
+        for idx, ref in enumerate(elems):
+            elem_code += self.add_elem(idx, ref)
+
+        return """
+        {mk_list}
+        {elem_code}
+        """.format(
+                mk_list=mk_list,
+                elem_code=elem_code)
+
+    def get_memory_operands(self):
+        return [
+                (self.args[0], [self.output_key]),
+                (self.args[0]+[self.output_key], [self.output_key])
+                ]
 
 class OpStmt(BasicOperation):
     def write(self):

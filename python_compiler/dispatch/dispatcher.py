@@ -11,6 +11,7 @@ dispatcher.py:
 
 from compiler.ast import Module, Stmt, Printnl, Assign, CallFunc
 from compiler.ast import Discard, Const, Name, Add, UnarySub
+from compiler.ast import List, Or, And, Compare, Not, Dict, Subscript, IfExp    
 
 from ..debug import dbg
 from ..memory.memory_manager import MemoryManager
@@ -57,7 +58,7 @@ class Dispatcher():
             Not         : self.handler.doNot,
             Dict        : self.handler.doDict,
             Subscript   : self.handler.doSubscript,
-            IfExp       : self.handler.doIfExp,
+#            IfExp       : self.handler.doIfExp,
         }
 
         # The keys are Python classes, so we can dispatch directly with the class of 'ast'
