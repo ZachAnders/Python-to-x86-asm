@@ -3,8 +3,20 @@
 
 """
 
-def CONST(val):
-    return "$" + str(val)
+def CONST(val, tag=None):
+    tag_value = 0
+    if tag == None:
+        return "$" + str(val)
+    elif tag == "INT":
+        tag_value = 0
+    elif tag == "BOOL":
+        tag_value = 1
+    elif tag == "FLOAT":
+        tag_value = 2
+    elif tag == "BIG":
+        tag_value = 3
+        
+    return "$" + str( (val << 2) | tag_value )
 
 def call_func_asm(funcname, arguments=None, output=None):
     """
@@ -18,6 +30,8 @@ def call_func_asm(funcname, arguments=None, output=None):
         write_output = ""
 
     assert isinstance(arguments, list), "Arguments must be lists, not " + str(type(arguments))
+
+    arguments.reverse()
 
     argtext = "\n".join(['pushl ' + str(arg) for arg in arguments or []])
     popargs = "addl ${num}, %esp".format(num=len(arguments)*4)

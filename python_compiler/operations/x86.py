@@ -198,37 +198,41 @@ class OpList(AbstractOperation):
     def __init__(self, mem, nodes):
         self.mem = mem
         self.output_key = self.mem.allocate(spillable=True)
-        self.temp_var = self.mem.allocate(spillable=True)
+        self.nodes = nodes
+        #self.temp_var = self.mem.allocate(spillable=True)
 
     # TODO: Liveness?
     def add_elem(self, idx, elem_ref):
         elem_alloc = self.mem.get(elem_ref)
         out_alloc = self.mem.get(self.output_key)
 
-        append = call_func_asm('set_subscript', [out_alloc, CONST(idx), elem_alloc])
+        append = call_func_asm('set_subscript', [out_alloc, CONST(idx, tag="INT"), elem_alloc])
 
         return append
 
     def write(self):
         output_alloc = self.mem.get(self.output_key)
-        elems = self.args[0]
+        elems = self.nodes
 
-        mk_list = call_func_asm('create_list', [CONST(len(elems))], output_alloc)
+        mk_list = call_func_asm('create_list', [CONST(len(elems), tag="INT")], output_alloc)
+        inject_big = output_alloc.inject('BIG')
         elem_code = ""
         for idx, ref in enumerate(elems):
             elem_code += self.add_elem(idx, ref)
 
         return """
         {mk_list}
+        {inject_big}
         {elem_code}
         """.format(
                 mk_list=mk_list,
-                elem_code=elem_code)
+                elem_code=elem_code,
+                inject_big=inject_big)
 
     def get_memory_operands(self):
         return [
-                (self.args[0], [self.output_key]),
-                (self.args[0]+[self.output_key], [self.output_key])
+                (self.nodes, [self.output_key]),
+                (self.nodes+[self.output_key], [self.output_key])
                 ]
 
 class OpStmt(BasicOperation):
