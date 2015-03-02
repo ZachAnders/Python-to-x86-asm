@@ -1,18 +1,22 @@
 from ..debug import dbg
 from .base import AbstractOperation, BasicOperation
+from .helpers import LabelManager
 from .helpers import call_func_asm, CONST
 
 class OpAdd(AbstractOperation):
     HAS_OUTPUT_KEY = True
     HAS_TEMP_REG = True
-    def __init__(self, mem, left, right, label_list, label_int):
+    def __init__(self, mem, left, right, is_int=True, output_key=None):
         self.mem = mem
         self.left = left
         self.right = right
-        self.label_list = label_list
-        self.label_int = label_int
+        self.is_int = is_int
 
-        self.output_key = self.mem.allocate(spillable=True)
+        if output_key == None:
+            self.output_key = self.mem.allocate(spillable=True)
+        else:
+            self.output_key = output_key
+
         self.temp_reg = self.mem.allocate(spillable=False)
         assert not self.temp_reg.canSpill()
 
@@ -27,15 +31,51 @@ class OpAdd(AbstractOperation):
         load_left = self.mem.doLoad(left, temp_reg)
         save_result = self.mem.doLoad(temp_reg, output)
 
+        if self.is_int:
+            proj_temp = temp_reg.project('INT', force=True)
+            proj_right = right.project('INT', force=True)
+            add_code = """
+                {proj_temp}
+                {proj_right}
+                addl {right_operand}, {temp_reg}
+                {inject_result}
+                {inject_right}
+            """.format(right_operand=right,
+                    proj_temp=proj_temp,
+                    proj_right=proj_right,
+                    temp_reg=temp_reg,
+                    inject_result=temp_reg.inject('INT'),
+                    inject_right=right.inject('INT'),
+                    )
+        else:
+            add_func = call_func_asm('add', arguments=[left, right], output=temp_reg)
+            proj_left = left.project('BIG', force=True)
+            proj_right = right.project('BIG', force=True)
+            
+            add_code = """
+                {proj_left}
+                {proj_right}
+                {add_func}
+                {inject_result}
+                {inject_left}
+                {inject_right}
+            """.format(add_func=add_func,
+                    proj_left=proj_left,
+                    proj_right=proj_right,
+                    inject_result=temp_reg.inject('BIG'),
+                    inject_left=left.inject('BIG'),
+                    inject_right=right.inject('BIG'))
+
         assert not self.temp_reg.canSpill()
 
         return """
             {load_left}
-            addl {right_operand}, {temp_reg} # Add right operand to left
+            {add_code}
             {save_result}
         """.format(
             load_left=load_left.write(),
             temp_reg=temp_reg,
+            add_code=add_code,
             right_operand=right,
             save_result=save_result.write())
             
@@ -154,6 +194,13 @@ class OpBoolSetCondition(BasicOperation):
                 left=left
                 )
 
+    def get_memory_operands(self):
+        return [
+                (self.args[:2], [self.temp_reg]),
+                (self.args[:2]+[self.temp_reg], [self.output_key])
+                ]
+
+
 class OpJumpOnBool(AbstractOperation):
     # TODO: Liveness?
     HAS_OUTPUT_KEY = False
@@ -175,6 +222,50 @@ class OpJumpOnBool(AbstractOperation):
         """.format(func=func,
                 label=self.label,
                 value=self.boolean)
+
+    def get_memory_operands(self):
+        return [([self.condition], [])]
+
+class OpIs(BasicOperation):
+    HAS_OUTPUT_KEY = True
+    HAS_TEMP_REG = True
+    def write(self):
+        label_eq = LabelManager.newLabel("is_eq")
+        label_end = LabelManager.newLabel("is_end")
+
+        left = self.mem.get(self.args[0])
+        right = self.mem.get(self.args[1])
+        output = self.mem.get(self.output_key)
+        temp_reg = self.mem.get(self.temp_reg)
+
+        load_left = self.mem.doLoad(left, temp_reg)
+
+        return """
+        {load_left}
+
+        cmpl {right}, {temp}
+        je {is_eq}
+        movl {false}, {output}
+        jmp {end}
+        {is_eq}:
+        movl {true}, {output}
+        {end}:
+        """.format(load_left=load_left.write(),
+                right=right,
+                temp=temp_reg,
+                false=CONST(0, tag='BOOL'),
+                true=CONST(1, tag='BOOL'),
+                output=output,
+                is_eq=label_eq,
+                end=label_end,
+                )
+
+    def get_memory_operands(self):
+        return [
+                (self.args, [self.temp_reg]),
+                (self.args+[self.temp_reg], [self.output_key])
+                ]
+        
 
 class OpJumpOnSame(AbstractOperation):
     HAS_OUTPUT_KEY = False
@@ -199,12 +290,19 @@ class OpJumpOnSame(AbstractOperation):
         return """
             {func_left}
             {func_right}
-            cmpl ${RESULT_LEFT},{RESULT_RIGHT}
+            cmpl {temp}, %eax
             je {label}
             """.format(func_left=func_left,
                     func_right=func_right,
                     label=self.label,
+                    temp=temp_alloc,
                     )
+
+    def get_memory_operands(self):
+        return [
+                ([self.leftCondition, self.rightCondition], [self.temp]),
+                ([self.temp], [])
+                ]
 
 class OpJumpOnTag(AbstractOperation):
     HAS_OUTPUT_KEY = False
@@ -213,7 +311,7 @@ class OpJumpOnTag(AbstractOperation):
         self.condition = condition 
         self.label = label
         self.tag = tag
-        self.isTag = isTag
+        self.isTag = "$" + str(int(isTag))
 
     def write(self):
         cond_alloc = self.mem.get(self.condition)
@@ -222,30 +320,140 @@ class OpJumpOnTag(AbstractOperation):
                 arguments=[cond_alloc])
         return """
             {func}
-            cmpl ${value1}, %eax 
+            cmpl {value}, %eax 
             je {label}
             """.format(func=func,
                     label=self.label,
                     value=self.isTag)
 
-class OpNewConst(BasicOperation):
-    HAS_OUTPUT_KEY = True
+    def get_memory_operands(self):
+        return [([self.condition], [])]
+
+
+class OpNewConst(AbstractOperation):
+    def __init__(self, mem, value, tag='INT'):
+        self.mem = mem
+        self.value = value
+        self.tag = tag
+        self.output_key = self.mem.allocate(spillable=True)
+
     def write(self):
         output_alloc = self.mem.get(self.output_key)
         return """
-        movl ${value}, {dest} # Allocate new constant
+        movl {value}, {dest} # Allocate new constant
+        """.format(
+            value=CONST(self.value, tag=self.tag),
+            dest=output_alloc,
+            )
+
+    def get_memory_operands(self):
+        return [ ([], [self.output_key]), ]
+
+class OpNot(BasicOperation):
+    HAS_OUTPUT_KEY = True
+    def write(self):
+        output_alloc = self.mem.get(self.output_key)
+        pyobj = self.mem.get(self.args[0])
+        func = call_func_asm('is_true',
+                arguments=[pyobj],
+                output=output_alloc)
+
+        return """
+        {func}
+        notl {output}
+        andl $1, {output}
         {inject}
         """.format(
-            value=self.args[0],
-            dest=self.mem.get(self.output_key),
-            inject=output_alloc.inject('INT'),
-            )
+                func=func,
+                output=output_alloc,
+                inject=output_alloc.inject('BOOL'),
+                )
+
+    def get_memory_operands(self):
+        return [ (self.args, [self.output_key]), ]
+
+
 
 class OpLabel(AbstractOperation):
     def __init__(self, label_name):
         self.label = label_name
     def write(self):
-        return "." + self.label
+        return self.label + ":"
+
+class OpJump(AbstractOperation):
+    def __init__(self, label_name):
+        self.label = label_name
+    def write(self):
+        return "jmp " + self.label
+
+class OpDict(BasicOperation):
+    HAS_OUTPUT_KEY = True
+    # TODO: Liveness?
+    def add_elem(self, key, elem_ref):
+        elem_alloc = self.mem.get(elem_ref)
+        out_alloc = self.mem.get(self.output_key)
+        key_alloc = self.mem.get(key)
+
+        append = call_func_asm('set_subscript', [out_alloc, key_alloc, elem_alloc])
+
+        return append
+
+    def write(self):
+        output = self.mem.get(self.output_key)
+
+        func = call_func_asm("create_dict", arguments=[], output=output)
+
+        code = ""
+        for node in self.args[0]:
+            code += self.add_elem(node[0], node[1])
+
+        return """
+        {func}
+        {inject}
+        {elem_code}
+        """.format(func=func,
+                elem_code=code,
+                inject=output.inject('BIG', force=True))
+
+    def get_memory_operands(self):
+        all_vals = [val[0] for val in self.args[0]] + [val[1] for val in self.args[0]]
+        return [
+                (all_vals, [self.output_key]),
+                (all_vals+[self.output_key], [self.output_key])
+                ]
+
+class OpSubscript(BasicOperation):
+    HAS_OUTPUT_KEY = True
+    def write(self):
+        pyobj = self.mem.get(self.args[0])
+        key = self.mem.get(self.args[1])
+        output = self.mem.get(self.output_key)
+
+        return call_func_asm('get_subscript',
+                arguments=[pyobj, key],
+                output=output)
+
+    def get_memory_operands(self):
+        return [ (self.args, [self.args[0]])]
+
+
+class OpSetSubscript(BasicOperation):
+    HAS_OUTPUT_KEY = False
+
+    def write(self):
+        pyobj = self.mem.get(self.args[0])
+        key = self.mem.get(self.args[1])
+        value = self.mem.get(self.args[2])
+
+        append = call_func_asm('set_subscript', [pyobj, key, value])
+
+        return """
+        {append}
+        """.format( append=append)
+
+    def get_memory_operands(self):
+        return [ (self.args, [self.args[0]])]
+
 
 class OpList(AbstractOperation):
     def __init__(self, mem, nodes):

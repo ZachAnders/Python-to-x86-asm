@@ -1,8 +1,9 @@
 from ..operations.x86 import OpAdd, OpModule, OpStmt, OpPrintnl, OpAssign
 from ..operations.x86 import OpCallFunc, OpUnarySub, OpNewConst, OpReturn, OpJumpOnBool
-from ..operations.x86 import OpBoolSetCondition, OpList
-from ..operations.polymorphism import OpIsBig
+from ..operations.x86 import OpBoolSetCondition, OpList, OpLabel, OpJumpOnSame, OpJumpOnTag, OpJump, OpDict
+from ..operations.x86 import OpSetSubscript, OpSubscript, OpIs, OpNot
 from ..operations.helpers import LabelManager
+from compiler.ast import Subscript
 
 class Handler():
     def __init__(self, dispatcher, mem, instrWriter):
@@ -14,7 +15,7 @@ class Handler():
         # Lables:
         label_type = LabelManager.newLabel("type_set_same")
         label_list = LabelManager.newLabel("list_addition")
-        label_int = LabelManager.newLabel("int_addition")
+        label_end = LabelManager.newLabel("end_addition")
 
         # Execute Left and Right
         left = self.dispatcher.dispatch(ast.left)
@@ -24,25 +25,29 @@ class Handler():
         jump_type = OpJumpOnSame(self.mem, left, right, label_type)
         self.instrWriter.write(jump_type)
 
+        # TODO: Error
+        self.instrWriter.write(OpLabel(label_type))
+
         # Check if list:
         jump_list = OpJumpOnTag(self.mem, left, label_list, 'big', isTag=True)
-        
-        # Handle Addition:
-        #op = OpAdd(self.mem, left, right)
+        self.instrWriter.write(jump_list)
 
-        op = OpAddNew(self.mem, left, right, label_list, lable_int)
-        """
-            - Call Function list_add for label_list
-            - Perform a regular add for lable_int
-        """
-        """both_lists = OpAnd(OpIsBig(left), OpIsBig(right))
+        # Int addition
+        op_add = OpAdd(self.mem, left, right, is_int=True)
+        self.instrWriter.write(op_add)
+        self.instrWriter.write(OpJump(label_end))
 
-        do_ints = OpIntAdd(left, right)
-        do_lists = OpListAdd(left, right)
+        # GOTO: END
 
-        result = self.doBranch(both_lists, do_lists, do_ints)"""
+        self.instrWriter.write(OpLabel(label_list))
 
-        return result
+        op = OpAdd(self.mem, left, right,
+                is_int=False, output_key=op_add.output_key)
+        self.instrWriter.write(op)
+
+        self.instrWriter.write(OpLabel(label_end))
+
+        return op_add.output_key
         
     def doModule(self, ast):
         op = OpModule(self.mem)
@@ -84,7 +89,16 @@ class Handler():
     def doAssign(self, ast):
         names, value_ref = ast.nodes, self.dispatcher.dispatch(ast.expr)
         for name in names:
-            op = OpAssign(self.mem, name.name, value_ref)
+            if isinstance(name, Subscript):
+                pyobj = self.dispatcher.dispatch(name.expr)
+                key = self.dispatcher.dispatch(name.subs[0])
+                # pyobj[key] = value_ref
+                op = OpSetSubscript(self.mem, pyobj, key, value_ref)
+
+                #Subscript
+            else:
+                #AssName
+                op = OpAssign(self.mem, name.name, value_ref)
             self.instrWriter.write(op)
         return None
 
@@ -99,9 +113,14 @@ class Handler():
         return op.output_key
 
     def doName(self, ast):
-        #left, right = self.dispatcher.dispatch_many(self, ast)
-        #op = OpAdd(self.mem, left, right)
-        #self.instrWriter.write(op)
+        if ast.name == "True":
+            op = OpNewConst(self.mem, 1, tag='BOOL')
+            self.instrWriter.write(op)
+            return op.output_key
+        elif ast.name == "False":
+            op = OpNewConst(self.mem, 0, tag='BOOL')
+            self.instrWriter.write(op)
+            return op.output_key
 
         # Return NameIdentifier
         return self.mem.getReference(ast.name)
@@ -120,17 +139,54 @@ class Handler():
     
     def doDict(self, ast):
         # Uses a tuple
-        nodes = [(self.dispatcher.dispatch(ast.left), self.dispatcher.dispatch(ast.right)) for item in ast.expr]
+        nodes = [(self.dispatcher.dispatch(item[0]),
+            self.dispatcher.dispatch(item[1])) for item in ast.items]
+
         op = OpDict(self.mem, nodes)
         self.instrWriter.write(op)
         return op.output_key
 
     def doOr(self, ast):
-        left = self.dispatcher.dispatch(ast.left)
-        right = self.dispatcher.dispatch(ast.right)
-        op = OpOr(self.mem, left, right)
+        # Labels:
+        label_true = LabelManager.newLabel("or_set_true")
+        label_end = LabelManager.newLabel("end")
+
+        left = self.dispatcher.dispatch(ast.nodes[0])
+
+        # Check left, jump if true
+        jump_true = OpJumpOnBool(self.mem, left, label_true, boolean=True)
+        self.instrWriter.write(jump_true)
+
+        # Execute Right
+        right = self.dispatcher.dispatch(ast.nodes[1])
+
+        op = OpBoolSetCondition(self.mem,
+                left, right,
+                label_true, label_end)
+
         self.instrWriter.write(op)
+
         return op.output_key
+        
+        """
+        r1 = exec e1
+        if r1 = true jump set_true
+
+        r2 = exec r2
+        r3 = r2
+        jump end
+
+        set_true:
+        r3 = r1
+
+        end:
+
+        """
+        
+        #right = self.dispatcher.dispatch(ast.right)
+        #op = OpOr(self.mem, left, right)
+        #self.instrWriter.write(op)
+        #return op.output_key
     
     def doAnd(self, ast):
         # Labels:
@@ -156,25 +212,39 @@ class Handler():
 
     def doCompare(self, ast):
     # Compare(expr, [(OP, expr)] )
-        left = self.dispatcher.dispatch(ast.left)
-        (middle, right) = self.dispatcher.dispatch(ast.right)
-        op = OpCompare(self.mem, left, middle, right)
+        left = self.dispatcher.dispatch(ast.expr)
+        ops = ast.ops[0]
+        val = self.dispatcher.dispatch(ops[1])
+
+        if ops[0] == 'is':
+            op = OpIs(self.mem, left, val)
+        elif ops[0] == '==':
+            pass
+        elif ops[0] == '!=':
+            pass
+
         self.instrWriter.write(op)
+        #(middle, right) = self.dispatcher.dispatch(ast.right)
+        #op = OpCompare(self.mem, left, middle, right)
+        #self.instrWriter.write(op)
+
         return op.output_key
 
 
     def doNot(self, ast):
         node = self.dispatcher.dispatch(ast.expr)
+
         op = OpNot(self.mem, node)
         self.instrWriter.write(op)
+
         return op.output_key
 
     def doSubscript(self, ast):
-    # Subscript(Name('Var'), 'OP_APPLY', [Const(5)])
-        names, apply_typ, value_ref = ast.nodes, ast.nodes, self.dispatcher.dispatch(ast.expr)
-        for name in names:
-            op = OpSubscript(self.mem, name.name, value_ref)
-            self.instrWriter.write(op)
+        key, pyobj = self.dispatcher.dispatch(ast.subs[0]), self.dispatcher.dispatch(ast.expr)
+
+        op = OpSubscript(self.mem, pyobj, key)
+        self.instrWriter.write(op)
+
         return op.output_key
 
     """def doIfExp(self, ast):"""
