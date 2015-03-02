@@ -8,7 +8,7 @@ class AbstractOperation(object):
 class BasicOperation(AbstractOperation):
     def __init__(self, mem, *args):
         self.mem = mem
-        self.args = args
+        self.args = list(args)
 
 
         if self.HAS_OUTPUT_KEY:

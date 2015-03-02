@@ -128,8 +128,16 @@ class OpCallFunc(BasicOperation):
     def write(self):
         fname = self.mem.get(self.args[0])
         output = self.mem.get(self.output_key)
+        inject = output.inject('INT')
 
-        return call_func_asm(fname, output=output)
+        func = call_func_asm(fname, output=output)
+
+        return """
+        {func}
+        {inject}
+        """.format(
+                inject=inject,
+                func=func)
 
 class OpAssign(AbstractOperation):
     def __init__(self, mem, name, value_ref):
@@ -226,6 +234,17 @@ class OpJumpOnBool(AbstractOperation):
     def get_memory_operands(self):
         return [([self.condition], [])]
 
+
+class OpIfExpr(BasicOperation):
+    HAS_OUTPUT_KEY = True
+    def write(self):
+        return ""
+    def get_memory_operands(self):
+        test = self.args[0]
+        return [
+                ([test], [self.output_key]),
+                ]
+
 class OpIs(BasicOperation):
     HAS_OUTPUT_KEY = True
     HAS_TEMP_REG = True
@@ -264,6 +283,132 @@ class OpIs(BasicOperation):
         return [
                 (self.args, [self.temp_reg]),
                 (self.args+[self.temp_reg], [self.output_key])
+                ]
+
+class OpPrimEquals(AbstractOperation):
+    def __init__(self, mem, left, val, invert=False, output_key=None):
+        self.mem = mem
+        self.left = left
+        self.val = val
+        if output_key:
+            self.output_key = output_key
+        else:
+            self.output_key = self.mem.allocate(spillable=False)
+        self.temp_reg = self.mem.allocate(spillable=False)
+        self.invert = invert
+
+    def write(self):
+        true_label = LabelManager.newLabel('prim_equals_true')
+        end_label = LabelManager.newLabel('prim_equals_end')
+        left = self.mem.get(self.left)
+        val = self.mem.get(self.val)
+        output = self.mem.get(self.output_key)
+        temp_reg = self.mem.get(self.temp_reg)
+
+        load_val = self.mem.doLoad(val, temp_reg)
+
+        if self.invert:
+            t_val = CONST(False, tag="BOOL")
+            f_val = CONST(True, tag="BOOL")
+        else:
+            t_val = CONST(True, tag="BOOL")
+            f_val = CONST(False, tag="BOOL")
+
+        return """
+        pushl {left}
+        {load_val}
+        sar $2, {left}
+        sar $2, {temp_reg}
+        cmpl {left}, {temp_reg}
+        je {TRUE}
+
+        movl {f_val}, {output}
+        jmp {END}
+
+        {TRUE}:
+        movl {t_val}, {output}
+        jmp {END}
+
+        {END}:
+        popl {left}
+
+        """.format(
+                left=left,
+                load_val=load_val.write(),
+                temp_reg=temp_reg,
+                TRUE=true_label,
+                END=end_label,
+                output=output,
+                t_val=t_val, f_val=f_val
+                )
+
+    def get_memory_operands(self):
+        return [
+                ([self.left], [self.temp_reg]),
+                ([self.left, self.temp_reg], [self.left, self.temp_reg]),
+                ([self.left, self.temp_reg], [self.left, self.temp_reg]),
+                ([], [self.output_key]),
+                ([], [self.left]),
+                ]
+
+class OpBigEquals(AbstractOperation):
+    def __init__(self, mem, left, val, invert=False, output_key=None):
+        self.mem = mem
+        self.left = left
+        self.val = val
+        if output_key:
+            self.output_key = output_key
+        else:
+            self.output_key = self.mem.allocate(spillable=False)
+        self.invert = invert
+
+    def write(self):
+        equal_label = LabelManager.newLabel('prim_big_equal')
+        end_label = LabelManager.newLabel('prim_big_end')
+        left = self.mem.get(self.left)
+        val = self.mem.get(self.val)
+        output = self.mem.get(self.output_key)
+        func = call_func_asm('equal',
+                arguments=[left, val],
+                output=output)
+        if self.invert:
+            t_val = CONST(False, tag="BOOL")
+            f_val = CONST(True, tag="BOOL")
+        else:
+            t_val = CONST(True, tag="BOOL")
+            f_val = CONST(False, tag="BOOL")
+
+        return """
+        {l_proj}
+        {v_proj}
+        {func}
+        cmpl $1, {output}
+        je {EQUAL}
+
+        movl {f_val}, {output}
+        jmp {END}
+
+        {EQUAL}:
+        movl {t_val}, {output}
+        jmp {END}
+
+        {END}:
+        {l_inj}
+        {v_inj}
+        """.format(
+                l_proj=left.project('BIG', force=True), v_proj=val.project('BIG', force=True),
+                l_inj=left.inject('BIG'), v_inj=val.inject('BIG'),
+                func=func,
+                output=output,
+                EQUAL=equal_label,
+                f_val=f_val, t_val=t_val,
+                END=end_label,
+                )
+
+    def get_memory_operands(self):
+        return [
+                ([self.left, self.val], [self.output_key]),
+                ([], [self.output_key]),
                 ]
         
 
@@ -316,7 +461,7 @@ class OpJumpOnTag(AbstractOperation):
     def write(self):
         cond_alloc = self.mem.get(self.condition)
 
-        func = call_func_asm('is_'+self.tag,
+        func = call_func_asm('is_'+self.tag.lower(),
                 arguments=[cond_alloc])
         return """
             {func}
@@ -348,6 +493,28 @@ class OpNewConst(AbstractOperation):
 
     def get_memory_operands(self):
         return [ ([], [self.output_key]), ]
+
+class OpDirectAssign(AbstractOperation):
+    def __init__(self, mem, left, value, value_is_const=True):
+        self.mem = mem
+        self.left = left
+        self.value = value
+        self.value_is_const = value_is_const
+
+    def write(self):
+        left = self.mem.get(self.left)
+        if not self.value_is_const:
+            value = self.mem.get(self.value)
+        else:
+            value = self.value
+        return """
+        movl {value}, {left}
+        """.format(
+                left=left,
+                value=value
+                )
+
+
 
 class OpNot(BasicOperation):
     HAS_OUTPUT_KEY = True

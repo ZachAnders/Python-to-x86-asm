@@ -58,7 +58,7 @@ class Dispatcher():
             Not         : self.handler.doNot,
             Dict        : self.handler.doDict,
             Subscript   : self.handler.doSubscript,
-#            IfExp       : self.handler.doIfExp,
+            IfExp       : self.handler.doIfExp,
         }
 
         # The keys are Python classes, so we can dispatch directly with the class of 'ast'

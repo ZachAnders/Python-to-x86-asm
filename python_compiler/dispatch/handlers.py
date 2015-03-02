@@ -1,8 +1,9 @@
 from ..operations.x86 import OpAdd, OpModule, OpStmt, OpPrintnl, OpAssign
 from ..operations.x86 import OpCallFunc, OpUnarySub, OpNewConst, OpReturn, OpJumpOnBool
 from ..operations.x86 import OpBoolSetCondition, OpList, OpLabel, OpJumpOnSame, OpJumpOnTag, OpJump, OpDict
-from ..operations.x86 import OpSetSubscript, OpSubscript, OpIs, OpNot
-from ..operations.helpers import LabelManager
+from ..operations.x86 import OpSetSubscript, OpSubscript, OpIs, OpNot, OpPrimEquals, OpBigEquals
+from ..operations.x86 import OpDirectAssign, OpIfExpr
+from ..operations.helpers import LabelManager, CONST
 from compiler.ast import Subscript
 
 class Handler():
@@ -218,7 +219,81 @@ class Handler():
 
         if ops[0] == 'is':
             op = OpIs(self.mem, left, val)
-        elif ops[0] == '==':
+        elif ops[0] == '==' or ops[0] == "!=":
+            shouldInvert = '!' in ops[0]
+
+            dobig_label = LabelManager.newLabel('op_eq_bothbig')
+            false_label = LabelManager.newLabel('op_eq_false')
+            true_label = LabelManager.newLabel('op_eq_true')
+            end_label = LabelManager.newLabel('op_eq_end')
+            
+            left_big = OpJumpOnTag(self.mem, left, dobig_label, 'BIG')
+            self.instrWriter.write(left_big)
+
+            # Left was NOT big. If Right is big, jump to false
+            right_big = OpJumpOnTag(self.mem, val, false_label, 'BIG')
+            self.instrWriter.write(right_big)
+
+            # Neither were big. We project and compare
+            op = OpPrimEquals(self.mem, left, val, invert=shouldInvert)
+            self.instrWriter.write(op)
+            self.instrWriter.write(OpJump(end_label))
+
+            # Label for comparing
+            self.instrWriter.write(OpLabel(dobig_label))
+
+            both_objs = OpJumpOnTag(self.mem, val, false_label, 'BIG', isTag=False)
+            self.instrWriter.write(both_objs)
+
+            op2 = OpBigEquals(self.mem, left, val, invert=shouldInvert, output_key=op.output_key)
+            self.instrWriter.write(op2)
+            self.instrWriter.write(OpJump(end_label))
+
+            self.instrWriter.write(OpLabel(false_label))
+            opFalse = OpDirectAssign(self.mem, op.output_key, CONST(shouldInvert, tag="BOOL"))
+            self.instrWriter.write(opFalse)
+
+            self.instrWriter.write(OpJump(end_label))
+
+            self.instrWriter.write(OpLabel(true_label))
+            # SET op.output_key = True
+            opTrue = OpDirectAssign(self.mem, op.output_key, CONST(not shouldInvert, tag="BOOL"))
+            self.instrWriter.write(opTrue)
+
+            self.instrWriter.write(OpLabel(end_label))
+
+            return op.output_key
+
+            """
+                r1 = exec e1
+                r2 = exec 2
+                if r1.tag == BIG jump DOBIG
+                if r2.tag == BIG jump FALSE
+
+||                r2 >> 2
+||                r1 >> 2
+||
+||                r3 = r1 == r2
+                jump END
+
+                DOBIG:
+                if r2.tag != BIG jump FALSE
+||                call is_equal(r1, r2)
+||                r3 = eax
+||                jump END
+||
+||
+||                FALSE:
+||                    r3 = false
+||                    jump END
+||                TRUE:
+||                    r3 = true
+||                    jump END
+  
+                  END:
+                    
+
+            """
             pass
         elif ops[0] == '!=':
             pass
@@ -247,6 +322,29 @@ class Handler():
 
         return op.output_key
 
-    """def doIfExp(self, ast):"""
+    def doIfExp(self, ast):
+        test = self.dispatcher.dispatch(ast.test)
+        then = LabelManager.newLabel('ifexp_then')
+        end = LabelManager.newLabel('ifexp_end')
 
+        op = OpIfExpr(self.mem, test)
+        self.instrWriter.write(op)
+        out_var = op.output_key
 
+        branch = OpJumpOnBool(self.mem, test, then)
+        self.instrWriter.write(branch)
+
+        val1 = self.dispatcher.dispatch(ast.else_)
+        copy1 = OpDirectAssign(self.mem, out_var, val1, value_is_const=False)
+        self.instrWriter.write(copy1)
+
+        self.instrWriter.write(OpJump(end))
+
+        self.instrWriter.write(OpLabel(then))
+        val2 = self.dispatcher.dispatch(ast.then)
+        copy2 = OpDirectAssign(self.mem, out_var, val2, value_is_const=False)
+        self.instrWriter.write(copy2)
+
+        self.instrWriter.write(OpLabel(end))
+
+        return out_var
