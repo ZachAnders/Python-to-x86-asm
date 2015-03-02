@@ -63,8 +63,8 @@ class OpAdd(AbstractOperation):
                     proj_left=proj_left,
                     proj_right=proj_right,
                     inject_result=temp_reg.inject('BIG'),
-                    inject_left=left.inject('BIG'),
-                    inject_right=right.inject('BIG'))
+                    inject_left=left.inject('BIG', force=True),
+                    inject_right=right.inject('BIG', force=True))
 
         assert not self.temp_reg.canSpill()
 
@@ -317,8 +317,8 @@ class OpPrimEquals(AbstractOperation):
         return """
         pushl {left}
         {load_val}
-        sar $2, {left}
-        sar $2, {temp_reg}
+        sarl $2, {left}
+        sarl $2, {temp_reg}
         cmpl {left}, {temp_reg}
         je {TRUE}
 
