@@ -101,12 +101,15 @@ class OpUnarySub(BasicOperation):
 
         return """
             {load} # Load Unary Sub operand
-            negl {output} # Neg operand
+            sarl $2, {temp_reg}
+            negl {temp_reg} # Neg operand
             {save} # Save Unary Sub result
+            {inject_output}
         """.format(
             load=load_op.write().strip(),
             save=save_op.write().strip(),
-            output=temp_reg)
+            temp_reg=temp_reg,
+            inject_output=output.inject('INT'))
 
     def get_memory_operands(self):
         return [
