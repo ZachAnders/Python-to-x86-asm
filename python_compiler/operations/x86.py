@@ -32,20 +32,21 @@ class OpAdd(AbstractOperation):
         save_result = self.mem.doLoad(temp_reg, output)
 
         if self.is_int:
-            proj_temp = temp_reg.project('INT', force=True)
-            proj_right = right.project('INT', force=True)
+            #proj_temp = temp_reg.project('INT', force=True)
+            #proj_right = right.project('INT', force=True)
             add_code = """
-                {proj_temp}
-                {proj_right}
+                pushl {right_operand}
+                sarl $2, {temp_reg}
+                sarl $2, {right_operand}
                 addl {right_operand}, {temp_reg}
+                popl {right_operand}
                 {inject_result}
-                {inject_right}
             """.format(right_operand=right,
-                    proj_temp=proj_temp,
-                    proj_right=proj_right,
+                    #proj_temp=proj_temp,
+                    #proj_right=proj_right,
                     temp_reg=temp_reg,
                     inject_result=temp_reg.inject('INT'),
-                    inject_right=right.inject('INT'),
+                    #inject_right=right.inject('INT'),
                     )
         else:
             add_func = call_func_asm('add', arguments=[left, right], output=temp_reg)
@@ -601,7 +602,7 @@ class OpSubscript(BasicOperation):
                 output=output)
 
     def get_memory_operands(self):
-        return [ (self.args, [self.args[0]])]
+        return [(self.args, [self.output_key])]
 
 
 class OpSetSubscript(BasicOperation):
