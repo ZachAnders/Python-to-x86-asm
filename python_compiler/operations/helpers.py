@@ -24,6 +24,8 @@ def call_func_asm(funcname, arguments=None, output=None):
         arguments: List of allocations (List(Allocation))
         output: Function return destination (Allocation)
     """
+    if arguments == None:
+        arguments = []
     if output != None:
         write_output = "movl %eax, {output}\n".format(output=output)
     else:

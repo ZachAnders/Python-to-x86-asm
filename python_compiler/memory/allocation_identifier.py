@@ -12,12 +12,12 @@ class AbstractAllocation(object):
         self.is_raw = True
         self.location = location
 
-    def project(self, tag):
+    def project(self, tag, force=False):
         assert tag in TAGS, "Invalid tag: " + str(tag)
-        if self.tag != tag:
+        if self.tag != tag and not force:
             raise ValueError(self.tag + " Is Not " + tag)
-        if not self.is_raw:
-            project_code = call_func_asm('project_'+tag.lower(), self.location, self.location) 
+        if not self.is_raw or force:
+            project_code = call_func_asm('project_'+tag.lower(), [self.location], self.location) 
             self.is_raw = True
             return project_code 
         else:
