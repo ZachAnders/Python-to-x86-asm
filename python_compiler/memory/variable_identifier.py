@@ -1,18 +1,11 @@
 import inspect
 
 class AbstractIdentifier(object):
-    def __init__(self, spillable=True):
+    def __init__(self):
         # We record the stack trace so we can identify who allocated us later
         self.allocated_at = inspect.stack()
         self.allocated_at.reverse()
         self.anonId = AnonymousIdentifier.ANON_ID
-        self.spillable = spillable
-
-    def setSpillable(self, canSpill):
-        self.spillable = canSpill
-
-    def canSpill(self):
-        return self.spillable
 
     def shouldAllocate(self):
         return True

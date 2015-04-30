@@ -79,13 +79,6 @@ class OpAdd(AbstractOperation):
             add_code=add_code,
             right_operand=right,
             save_result=save_result.write())
-            
-    def get_memory_operands(self):
-        return [
-                ([self.left], [self.temp_reg]),
-                ([self.right, self.temp_reg], [self.temp_reg]),
-                ([self.temp_reg], [self.output_key]),
-                ]
 
 
 class OpUnarySub(BasicOperation):
@@ -110,13 +103,6 @@ class OpUnarySub(BasicOperation):
             save=save_op.write().strip(),
             temp_reg=temp_reg,
             inject_output=output.inject('INT'))
-
-    def get_memory_operands(self):
-        return [
-                ([self.args[0]], [self.temp_reg]),
-                ([self.temp_reg], [self.temp_reg]),
-                ([self.temp_reg], [self.output_key]),
-                ]
 
 class OpPrintnl(BasicOperation):
     HAS_OUTPUT_KEY = False
@@ -168,14 +154,8 @@ class OpAssign(AbstractOperation):
         """ .format(
             load_tmp=load_op_tmp.write(),
             load_op_dest=load_op_dest.write())
-    def get_memory_operands(self):
-        return [
-                ([self.value_ref], [self.temp_register]),
-                ([self.temp_register], [self.alloc_var])
-                ]
 
 class OpBoolSetCondition(BasicOperation):
-    # TODO: Liveness?
     HAS_OUTPUT_KEY = True
     HAS_TEMP_REG = True
     def write(self):
@@ -206,15 +186,7 @@ class OpBoolSetCondition(BasicOperation):
                 left=left
                 )
 
-    def get_memory_operands(self):
-        return [
-                (self.args[:2], [self.temp_reg]),
-                (self.args[:2]+[self.temp_reg], [self.output_key])
-                ]
-
-
 class OpJumpOnBool(AbstractOperation):
-    # TODO: Liveness?
     HAS_OUTPUT_KEY = False
     def __init__(self, mem, condition, label, boolean=True):
         self.mem = mem
@@ -235,19 +207,10 @@ class OpJumpOnBool(AbstractOperation):
                 label=self.label,
                 value=self.boolean)
 
-    def get_memory_operands(self):
-        return [([self.condition], [])]
-
-
 class OpIfExpr(BasicOperation):
     HAS_OUTPUT_KEY = True
     def write(self):
         return ""
-    def get_memory_operands(self):
-        test = self.args[0]
-        return [
-                ([test], [self.output_key]),
-                ]
 
 class OpIs(BasicOperation):
     HAS_OUTPUT_KEY = True
@@ -282,12 +245,6 @@ class OpIs(BasicOperation):
                 is_eq=label_eq,
                 end=label_end,
                 )
-
-    def get_memory_operands(self):
-        return [
-                (self.args, [self.temp_reg]),
-                (self.args+[self.temp_reg], [self.output_key])
-                ]
 
 class OpPrimEquals(AbstractOperation):
     def __init__(self, mem, left, val, invert=False, output_key=None):
@@ -346,15 +303,6 @@ class OpPrimEquals(AbstractOperation):
                 t_val=t_val, f_val=f_val
                 )
 
-    def get_memory_operands(self):
-        return [
-                ([self.left], [self.temp_reg]),
-                ([self.left, self.temp_reg], [self.left, self.temp_reg]),
-                ([self.left, self.temp_reg], [self.left, self.temp_reg]),
-                ([], [self.output_key]),
-                ([], [self.left]),
-                ]
-
 class OpBigEquals(AbstractOperation):
     def __init__(self, mem, left, val, invert=False, output_key=None):
         self.mem = mem
@@ -409,13 +357,6 @@ class OpBigEquals(AbstractOperation):
                 END=end_label,
                 )
 
-    def get_memory_operands(self):
-        return [
-                ([self.left, self.val], [self.output_key]),
-                ([], [self.output_key]),
-                ]
-        
-
 class OpJumpOnSame(AbstractOperation):
     HAS_OUTPUT_KEY = False
     def __init__(self, mem, leftCondition, rightCondition, label):
@@ -454,7 +395,7 @@ class OpJumpOnSame(AbstractOperation):
                 ]
 
 class OpJumpOnTag(AbstractOperation):
-    HAS_OUTPUT_KEY = False
+    has_output_key = False
     def __init__(self, mem, condition, label, tag, isTag=True):
         self.mem = mem
         self.condition = condition 
@@ -475,10 +416,6 @@ class OpJumpOnTag(AbstractOperation):
                     label=self.label,
                     value=self.isTag)
 
-    def get_memory_operands(self):
-        return [([self.condition], [])]
-
-
 class OpNewConst(AbstractOperation):
     def __init__(self, mem, value, tag='INT'):
         self.mem = mem
@@ -494,9 +431,6 @@ class OpNewConst(AbstractOperation):
             value=CONST(self.value, tag=self.tag),
             dest=output_alloc,
             )
-
-    def get_memory_operands(self):
-        return [ ([], [self.output_key]), ]
 
 class OpDirectAssign(AbstractOperation):
     def __init__(self, mem, left, value, value_is_const=True):
@@ -540,11 +474,6 @@ class OpNot(BasicOperation):
                 inject=output_alloc.inject('BOOL'),
                 )
 
-    def get_memory_operands(self):
-        return [ (self.args, [self.output_key]), ]
-
-
-
 class OpLabel(AbstractOperation):
     def __init__(self, label_name):
         self.label = label_name
@@ -559,7 +488,6 @@ class OpJump(AbstractOperation):
 
 class OpDict(BasicOperation):
     HAS_OUTPUT_KEY = True
-    # TODO: Liveness?
     def add_elem(self, key, elem_ref):
         elem_alloc = self.mem.get(elem_ref)
         out_alloc = self.mem.get(self.output_key)
@@ -586,13 +514,6 @@ class OpDict(BasicOperation):
                 elem_code=code,
                 inject=output.inject('BIG', force=True))
 
-    def get_memory_operands(self):
-        all_vals = [val[0] for val in self.args[0]] + [val[1] for val in self.args[0]]
-        return [
-                (all_vals, [self.output_key]),
-                (all_vals+[self.output_key], [self.output_key])
-                ]
-
 class OpSubscript(BasicOperation):
     HAS_OUTPUT_KEY = True
     def write(self):
@@ -603,10 +524,6 @@ class OpSubscript(BasicOperation):
         return call_func_asm('get_subscript',
                 arguments=[pyobj, key],
                 output=output)
-
-    def get_memory_operands(self):
-        return [(self.args, [self.output_key])]
-
 
 class OpSetSubscript(BasicOperation):
     HAS_OUTPUT_KEY = False
@@ -622,10 +539,6 @@ class OpSetSubscript(BasicOperation):
         {append}
         """.format( append=append)
 
-    def get_memory_operands(self):
-        return [ (self.args, [self.args[0]])]
-
-
 class OpList(AbstractOperation):
     def __init__(self, mem, nodes):
         self.mem = mem
@@ -633,7 +546,6 @@ class OpList(AbstractOperation):
         self.nodes = nodes
         #self.temp_var = self.mem.allocate(spillable=True)
 
-    # TODO: Liveness?
     def add_elem(self, idx, elem_ref):
         elem_alloc = self.mem.get(elem_ref)
         out_alloc = self.mem.get(self.output_key)
@@ -660,12 +572,6 @@ class OpList(AbstractOperation):
                 mk_list=mk_list,
                 elem_code=elem_code,
                 inject_big=inject_big)
-
-    def get_memory_operands(self):
-        return [
-                (self.nodes, [self.output_key]),
-                (self.nodes+[self.output_key], [self.output_key])
-                ]
 
 class OpStmt(BasicOperation):
     def write(self):
