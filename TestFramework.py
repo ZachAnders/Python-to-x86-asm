@@ -12,21 +12,22 @@ def main():
     """
     # Parse through arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("-gcc", help="Use gcc based python compiler", action="store_true")
-    parser.add_argument("-clang", help="Use clang based python compiler", action="store_true")
+    #parser.add_argument("-gcc", help="Use gcc based python compiler", action="store_true")
+    #parser.add_argument("-clang", help="Use clang based python compiler", action="store_true")
     parser.add_argument("-tf", type=str, help="Use a test file set (.py, .in), no extensions needed")
     parser.add_argument("-tdir", type=str, help="Use a test directory, -tf will be ignored if used")
     parser.add_argument("-makein", type=str, help="Makes a .in file for a .py file")
     args = parser.parse_args() 
+   
     # Handle Arguments
     if args.tf != None and args.tdir == None:
-        RunTest(args.tf)
+        RunCompilerSet(args.tf)
     elif args.tdir != None:
         tests = next(os.walk(args.tdir))[2]
         tests = set(os.path.splitext(os.path.basename(test))[0] for test in tests)
         for test in tests:
             if test[0] != ".":
-                RunTest(test, args.tdir)
+                RunCompilerSet(test, args.tdir)
 
     if args.makein != None:
         GenInputFile(args.makein)
@@ -36,7 +37,62 @@ def main():
     #check_output.add("interpeter", [1, 3])
     #check_output.CompareLinesAreSame()
 
-def RunTest(test_name, directory=""):
+def RunCompilerSet(test_name, directory=''):
+    check_output = CheckOutput()
+
+    check_output.add("interpreter",
+            RunBaselineTest(test_name, directory=directory))
+    check_output.add("clang",
+            RunCompiledTest(test_name, 'compile.py', directory=directory))
+
+    test_succeeded = check_output.CompareLinesAreSame()
+
+    if test_succeeded:
+        print "Test [{name}] {gr}PASSED{end}".format(name=test_name, gr=BColors.OKGREEN, end=BColors.ENDC)
+
+
+def RunCompiledTest(test_name, compiler, using_clang=True, directory=''):
+    """ Compiles the given test using the given python -> assembly compiler.
+        We then compile that assembly output using either gcc or clang, depending
+        on the value of 'using_clang'. """
+
+    test_file = os.path.join(directory, test_name+'.py')
+    test_input = os.path.join(directory, test_name + '.in')
+
+    cmd = ['python', compiler, test_file]
+
+    subprocess.call(cmd)
+    if not os.path.exists(test_file):
+        raise ValueError('File does not exist: ' + str(test_file))
+
+    obj_libraries = [
+            'hashtable.o', 'hashtable_itr.o',
+            'hashtable_utility.o', 'runtime.o',
+            ]
+    obj_libraries = [os.path.join('runtime', p) for p in obj_libraries]
+    if using_clang:
+        source_file = os.path.join(directory, test_name) + '.ll'
+        cmd = ['clang', '-o', test_name, source_file] + obj_libraries
+    else:
+        source_file = os.path.join(directory, test_name) + '.s'
+        cmd = ['gcc', '-o', test_name, '-m32', source_file] + obj_libraries
+
+    subprocess.call(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+
+    inp = LoadInput(test_input)
+
+    proc = subprocess.Popen([os.path.join('.', test_name)],
+            stdout=subprocess.PIPE, stdin=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+
+    out, _ = proc.communicate(input=inp)
+
+    os.remove(test_name)
+    os.remove(source_file)
+
+    return out
+    
+def RunBaselineTest(test_name, directory=""):
     """
     Runs a test set
     """
@@ -49,7 +105,7 @@ def RunTest(test_name, directory=""):
         stdout=subprocess.PIPE, stdin=subprocess.PIPE,\
         stderr=subprocess.PIPE)
     out, _ = process.communicate(input=inp)
-    print out
+    return out
 
 def GenInputFile(file_name):
     f = open(file_name+".py", 'r')
@@ -57,10 +113,10 @@ def GenInputFile(file_name):
 
     for line in f:
         pos = 0
-        for i in range(line.count("input()")):
+        for _ in range(line.count("input()")):
             pos = line.find("input()")
             if (pos != 0 and line[pos-1] == " ") or (pos == 0):
-                save.write(str(random.randint(-100,100)))
+                save.write(str(random.randint(-100, 100)))
     f.close()
     save.close()
 class BColors():
@@ -121,7 +177,7 @@ class CheckOutput():
             passed = False
 
         if not passed:
-            print BColors.HEADER + "Inconsistent Results:" + BColors.ENDC
+            print BColors.FAIL + "Inconsistent Results:" + BColors.ENDC
             print BColors.UNDERLINE + BColors.BOLD +header + BColors.ENDC
             for i in range(max(len(out) for out in outs)):
                 safe_outs = [str(out[i]) if i < len(out) else "-" for out in outs] 
@@ -130,7 +186,6 @@ class CheckOutput():
                     "".join([str(safe_outs[j]) + " "*abs(space_amount + len(keys[j]) - len(safe_outs[j]))\
                     for j in range(len(keys))]) + \
                     BColors.ENDC
-             
         return passed
 
 def LoadInput(FileName):
