@@ -1,98 +1,64 @@
 """
-    X86 assembly related helper functions.
+    LLVM IR related helper functions.
 
 """
 
-def CONST(val, tag=None):
-    tag_value = 0
-    if tag == None:
-        return "$" + str(val)
-    elif tag == "INT":
-        tag_value = 0
-    elif tag == "BOOL":
-        tag_value = 1
-    elif tag == "FLOAT":
-        tag_value = 2
-    elif tag == "BIG":
-        tag_value = 3
-        
-    return "$" + str( (val << 2) | tag_value )
+PYOBJ_TYPE = "%struct.base_pyobj"
+PYOBJ_TYPE_PTR = PYOBJ_TYPE + "*"
+PYOBJ_TYPE_DEF = "%struct.base_pyobj = type { i64, i8*, i8 }"
+
+BIGOBJ_TYPE = "%struct.pyobj_struct"
+BIGOBJ_TYPE_PTR = BIGOBJ_TYPE + "*"
+BIGOBJ_TYPE_DEF = """
+%struct.pyobj_struct = type { i32, %union.anon }
+%union.anon = type { %struct.bound_method_struct }
+%struct.bound_method_struct = type { %struct.fun_struct, %struct.object_struct }
+%struct.fun_struct = type { i8*, %struct.base_pyobj }
+%struct.object_struct = type { %struct.hashtable*, %struct.class_struct }
+%struct.hashtable = type { i32, %struct.entry**, i32, i32, i32, i32 (i8*)*, i32 (i8*, i8*)* }
+%struct.entry = type { i8*, i8*, i32, %struct.entry* }
+%struct.class_struct = type { %struct.hashtable*, i32, %struct.class_struct* }
+"""
 
 def call_func_asm(funcname, arguments=None, output=None):
     """
         funcname: Name of function (String)
-        arguments: List of allocations (List(Allocation))
-        output: Function return destination (Allocation)
+        arguments: List of (type, allocations) List( (type, Allocation) )
+        output: Function return destination (type, Allocation)
     """
     if arguments == None:
         arguments = []
-    if output != None:
-        write_output = "movl %eax, {output}\n".format(output=output)
-    else:
-        write_output = ""
 
     assert isinstance(arguments, list), "Arguments must be lists, not " + str(type(arguments))
+    if output:
+        assert isinstance(output, tuple), "Output must by tuple (type, variable)!"
 
-    arguments.reverse()
+    if output:
+        ret_type = output[0]
+        ret_var = output[1]
+        if ret_type.startswith("%struct") and not ret_type.endswith("*"):
+            # Need to pass return struct as first arg, with sret
+            arguments.insert(0, (ret_type + "* sret", ret_var))
+            # No return argument type if struct-ret
+            assignment = ""
+            ret_type = "void"
+        else:
+            # Can do direct assignment
+            assignment = ret_var + " = "
+    else:
+        ret_type = "void"
+        assignment = ""
 
-    argtext = "\n".join(['pushl ' + str(arg) for arg in arguments or []])
-    popargs = "addl ${num}, %esp".format(num=len(arguments)*4)
+    arg_str = ",". join([typ + " " + str(val) for (typ, val) in arguments])
 
     return """
-    pushl %ebx # Save caller save registers
-    pushl %ecx
-    pushl %edx
-    {argtext}
-    call {funcname} # Call function
-    {popargs}
-    popl %edx # Restore Caller save registers
-    popl %ecx
-    popl %ebx
-    {write_output}
+    {assignment} call {ret_type} @{funcname}({arguments})
     """.format(
             funcname=funcname,
-            argtext=argtext,
-            popargs=popargs,
-            write_output=write_output
+            arguments=arg_str,
+            assignment=assignment,
+            ret_type=ret_type,
             )
-
-def if_branch_asm(condition, branch1, branch2):
-    """
-        condition: Location of boolean result
-        branch1: Assembly Instructions (String)
-        branch2: Assembly Instructions (String)
-    """
-
-    """
-
- >>>>    result1 = exec e1
-    if result1 == False jump .set_false
- >>>>    result2 = exec e2
-        result3 = result2
-        jmp .end
-
-    .set_false
-    result3 = result1
-    jmp .end
-
-    .end
-   
-
-
-#    if result2 == True jump .set_end
-
-"""
-
-"""
-
-and = ConditionalDispatcher(dispatcher, set_true=OpMovl(...), set_false=OpMovl(...))
-
-"""
-
-#class ConditionalDispatcher(object):
-#    def __init__(self, dispatcher, **astnodes):
-#        self.astnodes = astnodes
-#        self.instr = instructionPipeline
 
 class __LabelManager__(object):
     def __init__(self):
@@ -108,3 +74,48 @@ class __LabelManager__(object):
         return next_label
 
 LabelManager = __LabelManager__()
+
+def inject_int(value, output):
+    func_code = call_func_asm('inject_int',
+            arguments=[('i32', value)],
+            output=(PYOBJ_TYPE, output),
+            )
+
+    return """
+    {output} = alloca {pyobj_t}
+    {func_code}
+    """.format(
+            output=output,
+            func_code=func_code,
+            pyobj_t=PYOBJ_TYPE,
+            )
+
+def inject_bool(value, output):
+    func_code = call_func_asm('inject_bool',
+            arguments=[('i32', value)],
+            output=(PYOBJ_TYPE, output),
+            )
+
+    return """
+    {output} = alloca {pyobj_t}
+    {func_code}
+    """.format(
+            output=output,
+            func_code=func_code,
+            pyobj_t=PYOBJ_TYPE,
+            )
+
+def inject_big(value, output):
+    func_code = call_func_asm('inject_big',
+            arguments=[(BIGOBJ_TYPE_PTR, value)],
+            output=(PYOBJ_TYPE, output),
+            )
+
+    return """
+    {output} = alloca {pyobj_t}
+    {func_code}
+    """.format(
+            output=output,
+            func_code=func_code,
+            pyobj_t=PYOBJ_TYPE,
+            )

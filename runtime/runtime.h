@@ -95,6 +95,7 @@ struct pyobj_struct {
 typedef struct pyobj_struct big_pyobj;
 
 int tag(pyobj val);
+pyobj copy(pyobj val);
 
 int is_int(pyobj val);
 int is_bool(pyobj val);
@@ -127,6 +128,8 @@ pyobj get_subscript(pyobj c, pyobj key);
 big_pyobj* add(big_pyobj* a, big_pyobj* b);
 int equal(big_pyobj* a, big_pyobj* b);
 int not_equal(big_pyobj* x, big_pyobj* y);
+// END INCLUDED
+// TODO: Everything below
 
 big_pyobj* create_closure(void* fun_ptr, pyobj free_vars);
 void* get_fun_ptr(pyobj);

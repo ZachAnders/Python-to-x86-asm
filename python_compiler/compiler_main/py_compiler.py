@@ -24,7 +24,7 @@ class Compiler():
             filename = filename[:-3]
 
         py_infile = filename + ".py"
-        asm_outfile = filename + '.s'
+        asm_outfile = filename + '.ll'
 
         with open(py_infile, 'r') as in_file:
             code = in_file.read()

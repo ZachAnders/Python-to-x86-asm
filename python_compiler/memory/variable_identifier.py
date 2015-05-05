@@ -33,6 +33,7 @@ class NamedIdentifier(AbstractIdentifier):
     def __init__(self, name, **kwargs):
         super(NamedIdentifier, self).__init__(**kwargs)
         self.name = name
+        self.allocated = False
 
     def __repr__(self):
         return "<NamedVariable_[{name}]>".format(name=self.name)

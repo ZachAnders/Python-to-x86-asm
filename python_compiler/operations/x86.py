@@ -537,7 +537,7 @@ class OpSetSubscript(BasicOperation):
 
         return """
         {append}
-        """.format( append=append)
+        """.format(append=append)
 
 class OpList(AbstractOperation):
     def __init__(self, mem, nodes):

@@ -11,7 +11,7 @@ class BasicOperation(AbstractOperation):
 
 
         if self.HAS_OUTPUT_KEY:
-            self.output_key = self.mem.allocate(spillable=True)
+            self.output_key = self.mem.allocate()
         else:
             pass
 

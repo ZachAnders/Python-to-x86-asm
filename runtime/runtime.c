@@ -20,6 +20,10 @@ int tag(pyobj val) {
     //return val & MASK;
 }
 
+pyobj copy(pyobj val) {
+    return val;
+}
+
 int is_int(pyobj val) {
     return val.tag == INT_TAG;
         //return (val & MASK) == INT_TAG;
