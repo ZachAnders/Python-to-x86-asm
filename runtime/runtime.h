@@ -4,6 +4,7 @@
 #include "hashtable.h"
 #include "hashtable_itr.h"
 #include "hashtable_utility.h"
+#include <stdint.h>
 
 /* for old times sake */
 void print_int_nl(int x);
@@ -31,9 +32,9 @@ int input();
 enum big_type_tag { LIST, DICT, FUN, CLASS, OBJECT, UBMETHOD, BMETHOD };
 
 struct base_pyobj {
-    long int value;
+    uint64_t value;
     void *ptr;
-    char tag;
+    uint8_t tag;
 };
 
 typedef struct base_pyobj pyobj;
